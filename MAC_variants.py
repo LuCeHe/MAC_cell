@@ -114,7 +114,7 @@ def test_ControlUnit():
     d = 2
     
     
-    question_1 = np.array([1, 2, 5, 2, 4])
+    question_1 = np.array([1, 2, 5, 2, 4, 9, 1])
     n_timesteps = len(question_1)
     question_1 = question_1.reshape(1, n_timesteps, 1)
     question_2 = np.array([1, 2, 5, 2])
@@ -122,27 +122,38 @@ def test_ControlUnit():
     question_2 = question_2.reshape(1, n_timesteps, 1)
   
     
-    for question in [question_2]:
+    for question in [question_1]:
       
         # biLSTM
-      
+        # NOTE: if return_sequences=False and 'concat', it gives directly q 
+        # in the exact way we need it, but it doesn't give cw, that you get it 
+        # with if return_sequences=True and None
+        
         inputs = Input(shape=(None,1), name='question')
-        #biLSTM_Model = Sequential()
         output = Bidirectional(LSTM(d, return_sequences=True), input_shape=(n_timesteps, 1), merge_mode=None)(inputs)
         
-      
         biLSTM_Model = Model(inputs = inputs, output = output)
         cw = biLSTM_Model.predict(question)
+
+
+        #for cwi in cw:
+        #    print(cwi)
+
+        q = [cw[1][0][0].tolist() + cw[0][0][-1].tolist()]
+        q = np.array(q)
+        print(q)
+        print('')
+        
+        # position aware vector
       
-        for cwi in cw:
-            print(cwi.shape)
-            print('')  
-            print(cwi)
-            print('') 
-            print('')  
-    
+        inputs = Input(shape=(2*d,), name='question')
+        output = Dense(d, activation='linear')(inputs)
       
-      
+        q_i_Model = Model(inputs = inputs, output = output)
+        q_i = q_i_Model.predict(q)
+        
+        print(q_i)
+        
 '''
   # data to train
   
