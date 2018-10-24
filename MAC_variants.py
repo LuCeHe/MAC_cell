@@ -29,14 +29,17 @@ import numpy as np
 class ControlUnit(Layer):
   
   
-    def __init__(self, d_dim, **kwargs):
-        self.output_dim = output_dim
-        self.d_dim = d_dim
-        self.num_hops = num_hops
+    def __init__(self, **kwargs):
+        
         super(ControlUnit, self).__init__(**kwargs)
 
     def build(self, input_shape):
-        input_dim = input_shape[0][2]
+        print(input_shape)
+        input_dim = input_shape[0][1]
+        assert input_shape[0][1] == input_shape[1][1]
+        print(input_dim)
+        
+        self.d_dim = input_shape[0][1]
     
         initial_W_d2d_value = np.random.uniform(0, 1, size=[self.d_dim, 2*self.d_dim])
         initial_b_d_value = np.random.uniform(0, 1, size=[self.d_dim])
@@ -52,7 +55,7 @@ class ControlUnit(Layer):
         self.b_1   = K.variable(initial_b_1_value)
 
         self.trainable_weights = [self.W_d2d, self.b_d, self.W_1d, self.b_1]
-        super(MemoryRepresentation, self).build(input_shape)
+        super(ControlUnit, self).build(input_shape)
     
   
   
@@ -63,12 +66,17 @@ class ControlUnit(Layer):
     
         # equation c1  
         conc_cq = K.concatenate([c_i_1, q], axis=1)
+        print(K.int_shape(conc_cq))
     
         cq_i = K.dot(conc_cq, K.transpose(self.W_d2d))
         cq_i = K.bias_add(cq_i, self.b_d, data_format=None)  
+        
+        print(K.int_shape(cq_i))
     
         # equation c2.1  
         cqcw = cq_i*cw_s
+        print(K.int_shape(cw_s))
+        print(K.int_shape(cqcw))
     
         ca_is = K.dot(cqcw, K.transpose(self.W_1d))
         ca_is = K.bias_add(ca_is, self.b_1, data_format=None)
@@ -138,6 +146,11 @@ def test_ControlUnit():
 
         #for cwi in cw:
         #    print(cwi)
+        #    print('')            
+        #print('')
+        #print('')
+        cws = np.concatenate(cw, axis=2)
+        #print('')
 
         q = [cw[1][0][0].tolist() + cw[0][0][-1].tolist()]
         q = np.array(q)
@@ -154,24 +167,37 @@ def test_ControlUnit():
         
         print(q_i)
         
-'''
-  # data to train
+        # c_i_1        
+        
+        c_i_1 = np.zeros((1,d))
+        
+        print(c_i_1)
+        
+        
+        # test ControlUnit without training
+        
+        inputs = [c_i_1, q_i, cws]
+        
+        
+        
+        # data to train
   
-  c_i_1 = np.random.uniform(0, 1, size=[d])
+        c_i_1 = np.random.uniform(0, 1, size=[d])
   
   
-  # build model  
+        # build model  
   
   
-  c_input = Input(shape=(story_maxlen, len(vocab)), name='c_input')
-  q_input = Input(shape=(story_maxlen, len(vocab)), name='q_input')
-  w_input = Input(shape=(story_maxlen, len(vocab)), name='w_input')
+        c_input = Input(shape=(d,), name='c_input')
+        q_input = Input(shape=(d,), name='q_input')
+        w_input = Input(shape=(None,2*d), name='w_input')
   
-  output = ControlUnit(d_dim=d)([c_input, q_input, w_input])
-  controlUnitModel = Model(inputs = [c_input, q_input, w_input], output = output)
+        output = ControlUnit()([c_input, q_input, w_input])
+        controlUnitModel = Model(inputs = [c_input, q_input, w_input], output = output)
 
-  controlUnitModel
-'''
-  
+        c_i = controlUnitModel.predict(inputs)
+        print(c_i)
+          
+          
   
 test_ControlUnit()
