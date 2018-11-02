@@ -21,7 +21,7 @@ from keras.layers import Dense, Input
 from keras.layers import TimeDistributed
 from keras.layers import Bidirectional
 
-from MAC_variants import ControlUnit, ReadUnit
+from MAC_variants import ControlUnit, ReadUnit, WriteUnit
 
 def test_ControlUnit():
     d = 2
@@ -85,9 +85,9 @@ def test_ControlUnit():
         w_input = Input(shape=(None,d), name='w_input')
   
         output = ControlUnit()([c_input, q_input, w_input])
-        controlUnitModel = Model(inputs = [c_input, q_input, w_input], output = output)
+        model = Model(inputs = [c_input, q_input, w_input], output = output)
 
-        c_i = controlUnitModel.predict(input_data)
+        c_i = model.predict(input_data)
         print(c_i)
           
           
@@ -112,14 +112,43 @@ def test_ReadUnit():
     k_input = Input(shape=(None, None, d), name='w_input')
   
     output = ReadUnit()([c_input, m_input, k_input])
-    readUnitModel = Model(inputs =[c_input, m_input, k_input], output = output)
+    model = Model(inputs =[c_input, m_input, k_input], output = output)
 
-    r_i = readUnitModel.predict(input_data)
+    r_i = model.predict(input_data)
     print(len(r_i))
     print(r_i.shape)
     print(r_i)     
     
+
+def test_WriteUnit():
+    d = 3
+    
+    
+    # data
+    
+    # FIXME: it doesn't work with a batchSize = 2
+    batchSize = 1
+    c_i = np.random.uniform(0, 1, size=(batchSize, d))
+    r_i = np.random.uniform(0, 1, size=(batchSize, d))
+    m_i_1 = np.random.uniform(0, 1, size=(batchSize, d))
+    
+    input_data = [c_i, r_i, m_i_1]
+  
+  
+    # build model  
+    c_input = Input(shape=(d,), name='c_input')
+    r_input = Input(shape=(d,), name='r_input')
+    m_input = Input(shape=(d,), name='m_input')
+  
+    output = WriteUnit()([c_input, r_input, m_input])
+    model = Model(inputs =[c_input, r_input, m_input], output = output)
+
+    m_i = model.predict(input_data)
+    print(len(m_i))
+    print(m_i.shape)
+    print(m_i)     
+
     
 if __name__ == '__main__':
     
-    test_ReadUnit()
+    test_WriteUnit()

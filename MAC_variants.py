@@ -17,6 +17,20 @@ from keras.engine.topology import Layer
 import numpy as np
 
 
+'''
+- [DONE] Control Unit
+- [DONE] Control Unit test
+- [DONE] Read Unit
+- [DONE] Read Unit test
+- Write Unit
+- Write Unit test
+- Mac unit
+- check that they work on batches
+- CLEVR
+- CLEAR
+- recurrent MAC
+- goedel machine
+'''
 
 # MAC cell
 # https://arxiv.org/pdf/1803.03067.pdf
@@ -93,11 +107,11 @@ class ReadUnit(Layer):
         super(ReadUnit, self).__init__(**kwargs)
 
     def build(self, input_shape):
-        print(input_shape)
         
-        assert input_shape[0][1] == input_shape[1][1]
-        print(input_shape[2])
         assert len(input_shape[2]) == 4
+        assert input_shape[0][1] == input_shape[1][1]
+        assert input_shape[0][1] == input_shape[2][3]
+
         
         self.d_dim = input_shape[0][1]
         
@@ -207,6 +221,71 @@ class ReadUnit(Layer):
   
     
     
+class WriteUnit(Layer):
+  
+  
+    def __init__(self, **kwargs):
+        
+        super(WriteUnit, self).__init__(**kwargs)
+
+    def build(self, input_shape):
+        print(input_shape)
+        assert input_shape[0][1] == input_shape[1][1]
+        assert input_shape[0][1] == input_shape[2][1]
+        
+        self.d_dim = input_shape[0][1]
+    
+        initial_W_d2d_value = np.random.uniform(0, 1, size=[self.d_dim, 2*self.d_dim])
+        initial_b_d_value = np.random.uniform(0, 1, size=[self.d_dim])
+    
+        initial_W_1d_value = np.random.uniform(0, 1, size=[1, self.d_dim])
+        initial_b_1_value = np.random.uniform(0, 1, size=[1])
+
+        self.input_dim = input_shape[0][1]
+        self.W_d2d = K.variable(initial_W_d2d_value)
+        self.b_d   = K.variable(initial_b_d_value)
+    
+        self.W_1d  = K.variable(initial_W_1d_value)
+        self.b_1   = K.variable(initial_b_1_value)
+
+        self.trainable_weights = [self.W_d2d, self.b_d, self.W_1d, self.b_1]
+        super(WriteUnit, self).build(input_shape)
+    
+  
+  
+    def call(self, inputs, mask=None):
+        c_i_1 = inputs[0]
+        q = inputs[1]
+        cw_s = inputs[2]
+        
+        # equation c1  
+        conc_cq = K.concatenate([c_i_1, q], axis=1)
+    
+        cq_i = K.dot(conc_cq, K.transpose(self.W_d2d))
+        cq_i = K.bias_add(cq_i, self.b_d, data_format=None)  
+    
+        # equation c2.1  
+        cqcw = cw_s * cq_i
+
+        ca_is = K.dot(cqcw, K.transpose(self.W_1d))
+        ca_is = K.bias_add(ca_is, self.b_1, data_format=None)
+            
+        # equation c2.2
+        cv_is = K.softmax(ca_is)
+    
+        # equation c2.3
+        c_i = K.sum(cv_is*cw_s, axis=1)
+    
+        return c_i
+  
+  
+    def get_output_shape_for(self, input_shape):
+        return self.d_dim
+  
+
+class writeUnit(Layer):
+    pass
+
     
     
 class MAC_cell(Layer):
