@@ -21,7 +21,7 @@ from keras.layers import Dense, Input
 from keras.layers import TimeDistributed
 from keras.layers import Bidirectional
 
-from MAC_variants import ControlUnit, ReadUnit, WriteUnit
+from MAC_variants import ControlUnit, ReadUnit, WriteUnit, MAC_layer
 
 def test_ControlUnit():
     d = 2
@@ -146,9 +146,51 @@ def test_WriteUnit():
     m_i = model.predict(input_data)
     print(len(m_i))
     print(m_i.shape)
-    print(m_i)     
+    print(m_i)
 
+
+def test_MAC():
+    d = 2
+    batchSize = 1
+    
+    question = np.array([1, 2, 5, 2, 4, 9, 1])  #np.array([1, 2, 5, 2])
+    n_timesteps = len(question)
+    question = question.reshape(1, n_timesteps, 1)
+          
+    # biLSTM
+    inputs = Input(shape=(None,1), name='question')
+    output = Bidirectional(LSTM(d, return_sequences=True), input_shape=(n_timesteps, 1), merge_mode=None)(inputs)
+    
+    biLSTM_Model = Model(inputs = inputs, output = output)
+    cw = biLSTM_Model.predict(question)
+    cws = np.concatenate(cw, axis=1)
+
+    q = [cw[1][0][0].tolist() + cw[0][0][-1].tolist()]
+    q = np.array(q)
+    
+    # c_i_1                
+    c_i_1 = np.random.uniform(0, 1, size=(1,d))
+    k_hw = np.random.uniform(0, 1, size=(batchSize, 3, 4, d))
+    m_i_1 = np.random.uniform(0, 1, size=(batchSize,d))
+    k_hw = np.random.uniform(0, 1, size=(batchSize, 3, 4, d))
+    
+    # test ControlUnit without training        
+    input_data = [c_i_1, q, cws, m_i_1, k_hw]
+  
+    # build model  
+    c_input = Input(shape=(d,), name='c_input')
+    q_input = Input(shape=(d,), name='q_input')
+    cws_input = Input(shape=(None,d), name='w_input')
+    m_input = Input(shape=(d,), name='q_input')
+    k_input = Input(shape=(None, None, d), name='w_input')
+
+    c, m = MAC_layer(c_input, q_input, cws_input, m_input, k_input)
+    model = Model(inputs = [c_input, q_input, cws_input, k_input], output = [c, m])
+
+    c_i, m_i = model.predict(input_data)
+    print(c_i, m_i)
+      
     
 if __name__ == '__main__':
     
-    test_WriteUnit()
+    test_MAC()
