@@ -12,7 +12,7 @@ from tensorflow import set_random_seed
 set_random_seed(2)
 
 from keras import backend as K
-from keras.layers import Dense
+from keras.layers import Dense, concatenate
 from keras.engine.topology import Layer
 
 import numpy as np
@@ -80,6 +80,7 @@ class ControlUnit(Layer):
     
         cq_i = K.dot(conc_cq, K.transpose(self.W_d2d))
         cq_i = K.bias_add(cq_i, self.b_d, data_format=None)  
+        cq_i = K.expand_dims(cq_i, axis=1)
     
         # equation c2.1  
         cqcw = cw_s * cq_i
@@ -155,9 +156,6 @@ class ReadUnit(Layer):
         c_i = inputs[0]
         m_i_1 = inputs[1]
         k_hw = inputs[2]
-        #print('c_i:     ', c_i)
-        #print('m_i_1:   ', m_i_1)
-        #print('k_hw:    ', k_hw)
         
         
         # equation r1        
@@ -165,41 +163,31 @@ class ReadUnit(Layer):
         Wm_b = K.bias_add(Wm_b, self.b_dm, data_format=None)  
         Wk_b = K.dot(m_i_1, K.transpose(self.W_ddk))
         Wk_b = K.bias_add(k_hw, self.b_dk, data_format=None)          
-        #print('Wm_b:    ', K.int_shape(Wm_b))
-        #print('Wk_b:    ', K.int_shape(Wk_b))
         
-        # TODO: check the following multiplication is done properly
+        Wm_b = K.expand_dims(Wm_b,axis=1)
+        Wm_b = K.expand_dims(Wm_b,axis=1)
         I_ihw = Wm_b*Wk_b        
-        #print('I_ihw:   ', K.int_shape(I_ihw))
         
         # equation r2
         conc_Ik = K.concatenate([I_ihw, k_hw], axis=3)        
-        #print('conc_Ik: ', K.int_shape(conc_Ik))
         
         II_ihw = K.dot(conc_Ik, K.transpose(self.W_d2d))
         II_ihw = K.bias_add(II_ihw, self.b_d1, data_format=None) 
-        #print('II_ihw:  ', K.int_shape(II_ihw))
-        
         
         # equation r31
+        c_i = K.expand_dims(c_i,axis=1)
+        c_i = K.expand_dims(c_i,axis=1)
         cI = c_i*II_ihw
-        #print('cI:      ', K.int_shape(cI))
         
         ra_ihw = K.dot(cI, K.transpose(self.W_dd))
         ra_ihw = K.bias_add(ra_ihw, self.b_d2, data_format=None)                 
-        #print('ra_ihw:  ', K.int_shape(ra_ihw))
         
         # equation r32        
         rv_ihw = K.softmax(ra_ihw)        
-        #print('rv_ihw:  ', K.int_shape(rv_ihw))
         
         # equation r33         
         r_i = K.sum(rv_ihw*k_hw, axis=1)        
-        #print('r_i:      ', K.int_shape(r_i))
-        
         r_i = K.sum(r_i, axis=1)        
-        #print('r_i:      ', K.int_shape(r_i))
-
         return r_i
   
   
@@ -264,9 +252,6 @@ class WriteUnit(Layer):
         
         # equation c1  
         m_info = K.concatenate([r_i, m_i_1], axis=1)
-        #print('m_info:      ', K.int_shape(m_info))
-    
-    
         m_info = K.dot(m_info, K.transpose(self.W_d2d))
         m_info = K.bias_add(m_info, self.b_d, data_format=None)  
         
@@ -291,21 +276,29 @@ class WriteUnit(Layer):
         return self.d_dim
 
 
+def OutputUnit(m_p, q, num_softmax = 20):
+    d = K.int_shape(m_p)[1]
+    
+    assert 2*K.int_shape(m_p)[1] == K.int_shape(q)[1]
+    x = concatenate([m_p, q])
+    x = Dense(d, activation='relu')(x)
+    softmax_ouput_layer = Dense(num_softmax, activation='softmax')(x)
+    
+    return softmax_ouput_layer
 
 
 def MAC_layer(c_i_1, q, cws, m_i_1, KB):
-    d = K.int_shape(c_i_1)[1]
-    print('c_i_1:    ', K.int_shape(c_i_1)[1])
-    #d = 
-    q_i = Dense(d, activation='linear')(q)
-    print('q_i:      ', K.int_shape(q_i))
-    c_i = ControlUnit()([c_i_1, q_i, cws])
-    print('c_i:      ', K.int_shape(c_i))
     
+    assert 2*K.int_shape(c_i_1)[1] == K.int_shape(q)[1] 
+    assert K.int_shape(c_i_1)[1] == K.int_shape(cws)[2]
+    assert K.int_shape(c_i_1)[1] == K.int_shape(m_i_1)[1]
+    assert K.int_shape(c_i_1)[1] == K.int_shape(KB)[3]
+    
+    d = K.int_shape(c_i_1)[1]
+    q_i = Dense(d, activation='linear')(q)
+    c_i = ControlUnit()([c_i_1, q_i, cws])    
     r_i = ReadUnit()([c_i, m_i_1, KB])
-    print('r_i:      ', K.int_shape(r_i))
     m_i = WriteUnit()([c_i, r_i, m_i_1])
-    print('m_i:      ', K.int_shape(m_i))
     return [c_i, m_i]
     
 
