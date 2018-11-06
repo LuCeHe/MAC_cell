@@ -21,7 +21,7 @@ from keras.layers import Dense, Input
 from keras.layers import TimeDistributed
 from keras.layers import Bidirectional
 
-from MAC_variants import ControlUnit, ReadUnit, WriteUnit, MAC_layer
+from MAC_variants import ControlUnit, ReadUnit, WriteUnit, MAC_layer, OutputUnit
 
 def test_ControlUnit():
     d = 2
@@ -212,7 +212,6 @@ def test_MAC():
     print(c_i, m_i)
       
 
-
 def test_kMAC(k=3):
     
     # parameters
@@ -237,9 +236,37 @@ def test_kMAC(k=3):
     model.summary()
     c_i, m_i = model.predict(input_data)
     print(c_i, m_i)
+    
+
+def test_kMAC_wOutput(k=3):
+    
+    # parameters
+    
+    d = 2
+    batchSize = 1
+
+    # get input data and input layers
+    
+    input_data, input_layers = get_inputs_MAC(d, batchSize)
+
+    # Build model
+    
+    c, q_input, cws_input, m, k_input = input_layers
+    
+    for _ in range(k):
+        c, m = MAC_layer(c, q_input, cws_input, m, k_input)
+
+
+
+    softmax_output = OutputUnit(m, q_input)
+    model = Model(inputs = input_layers, output = [c, softmax_output])
+    
+    model.summary()
+    c_i, softmax_output_i = model.predict(input_data)
+    print(c_i, softmax_output_i)
 
 
     
 if __name__ == '__main__':
     
-    test_kMAC()
+    test_kMAC_wOutput()

@@ -12,7 +12,7 @@ from tensorflow import set_random_seed
 set_random_seed(2)
 
 from keras import backend as K
-from keras.layers import Dense, Concatenate
+from keras.layers import Dense, concatenate
 from keras.engine.topology import Layer
 
 import numpy as np
@@ -290,9 +290,13 @@ class WriteUnit(Layer):
 
 def OutputUnit(m_p, q, num_softmax = 20):
     d = K.int_shape(m_p)[1]
-    assert K.int_shape(m_p)[1] == K.int_shape(q)[2]
     
-    x = Concatenate([m_p, q])
+    assert 2*K.int_shape(m_p)[1] == K.int_shape(q)[1]
+    
+    print(m_p)
+    print(q)
+    x = concatenate([m_p, q])
+    print(x)
     x = Dense(d, activation='relu')(x)
     softmax_ouput_layer = Dense(num_softmax, activation='softmax')(x)
     
