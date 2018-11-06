@@ -8,7 +8,7 @@ Created on Wed Oct 24 15:05:01 2018
 
 
 from numpy.random import seed
-seed(1)
+seed(2)
 from tensorflow import set_random_seed
 set_random_seed(2)
 
@@ -20,11 +20,35 @@ from keras.layers import LSTM
 from keras.layers import Dense, Input
 from keras.layers import TimeDistributed
 from keras.layers import Bidirectional
+from keras.preprocessing.sequence import pad_sequences
 
 from MAC_variants import ControlUnit, ReadUnit, WriteUnit, MAC_layer, OutputUnit
 
+
+def generateBatchRandomQuestions(batchSize):
+    
+    questions = []
+    for _ in range(batchSize):
+        sentence_length = np.random.choice(9)
+        randomQ = np.random.choice(7, sentence_length)
+        questions.append(randomQ)
+    
+        
+        
+    padded_questions = pad_sequences(questions)
+    
+    print('Padded question')
+    print('')
+    print(padded_questions)
+    print('')
+    
+    return padded_questions
+    
+    
 def test_ControlUnit():
     d = 2
+    batchSize = 3
+    
     
     
     question_1 = np.array([1, 2, 5, 2, 4, 9, 1])
@@ -34,61 +58,62 @@ def test_ControlUnit():
     n_timesteps = len(question_2)
     question_2 = question_2.reshape(1, n_timesteps, 1)
   
-    # FIXME: I don't know if it works with a batchSize = 2    
-    for question in [question_1]:
+    
+    
+    question = generateBatchRandomQuestions(batchSize)
       
-        # biLSTM
-        # NOTE: if return_sequences=False and 'concat', it gives directly q 
-        # in the exact way we need it, but it doesn't give cw, that you get it 
-        # with if return_sequences=True and None
-        
-        inputs = Input(shape=(None,1), name='question')
-        output = Bidirectional(LSTM(d, return_sequences=True), input_shape=(n_timesteps, 1), merge_mode=None)(inputs)
-        
-        biLSTM_Model = Model(inputs = inputs, output = output)
-        cw = biLSTM_Model.predict(question)
+    # biLSTM
+    # NOTE: if return_sequences=False and 'concat', it gives directly q 
+    # in the exact way we need it, but it doesn't give cw, that you get it 
+    # with if return_sequences=True and None
+    
+    inputs = Input(shape=(None,1), name='question')
+    output = Bidirectional(LSTM(d, return_sequences=True), input_shape=(n_timesteps, 1), merge_mode=None)(inputs)
+    
+    biLSTM_Model = Model(inputs = inputs, output = output)
+    cw = biLSTM_Model.predict(question)
 
 
-        #for cwi in cw:
-        #    print(cwi)
-        #    print('')            
-        #print('')
-        #print('')
-        cws = np.concatenate(cw, axis=1)
-        print(cws)
-        #print('')
+    #for cwi in cw:
+    #    print(cwi)
+    #    print('')            
+    #print('')
+    #print('')
+    cws = np.concatenate(cw, axis=1)
+    print(cws)
+    #print('')
 
-        q = [cw[1][0][0].tolist() + cw[0][0][-1].tolist()]
-        q = np.array(q)
-        print(q)
-        print('')
-        
-        # position aware vector      
-        inputs = Input(shape=(2*d,), name='question')
-        output = Dense(d, activation='linear')(inputs)
-      
-        q_i_Model = Model(inputs = inputs, output = output)
-        q_i = q_i_Model.predict(q)
-        
-        # c_i_1                
-        c_i_1 = np.random.uniform(0, 1, size=(1,d))
-        
-        # test ControlUnit without training        
-        input_data = [c_i_1, q_i, cws]
+    q = [cw[1][0][0].tolist() + cw[0][0][-1].tolist()]
+    q = np.array(q)
+    print(q)
+    print('')
+    
+    # position aware vector      
+    inputs = Input(shape=(2*d,), name='question')
+    output = Dense(d, activation='linear')(inputs)
+  
+    q_i_Model = Model(inputs = inputs, output = output)
+    q_i = q_i_Model.predict(q)
+    
+    # c_i_1                
+    c_i_1 = np.random.uniform(0, 1, size=(1,d))
+    
+    # test ControlUnit without training        
+    input_data = [c_i_1, q_i, cws]
   
   
-        # build model  
+    # build model  
   
   
-        c_input = Input(shape=(d,), name='c_input')
-        q_input = Input(shape=(d,), name='q_input')
-        w_input = Input(shape=(None,d), name='w_input')
+    c_input = Input(shape=(d,), name='c_input')
+    q_input = Input(shape=(d,), name='q_input')
+    w_input = Input(shape=(None,d), name='w_input')
   
-        output = ControlUnit()([c_input, q_input, w_input])
-        model = Model(inputs = [c_input, q_input, w_input], output = output)
+    output = ControlUnit()([c_input, q_input, w_input])
+    model = Model(inputs = [c_input, q_input, w_input], output = output)
 
-        c_i = model.predict(input_data)
-        print(c_i)
+    c_i = model.predict(input_data)
+    print(c_i)
           
           
 def test_ReadUnit():
@@ -269,4 +294,10 @@ def test_kMAC_wOutput(k=3):
     
 if __name__ == '__main__':
     
-    test_kMAC_wOutput()
+    test_ControlUnit()
+    
+    #generateBatchRandomQuestions(5)
+    
+    
+    
+    
