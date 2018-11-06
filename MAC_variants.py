@@ -12,7 +12,7 @@ from tensorflow import set_random_seed
 set_random_seed(2)
 
 from keras import backend as K
-from keras.layers import Dense
+from keras.layers import Dense, Concatenate
 from keras.engine.topology import Layer
 
 import numpy as np
@@ -155,9 +155,6 @@ class ReadUnit(Layer):
         c_i = inputs[0]
         m_i_1 = inputs[1]
         k_hw = inputs[2]
-        #print('c_i:     ', c_i)
-        #print('m_i_1:   ', m_i_1)
-        #print('k_hw:    ', k_hw)
         
         
         # equation r1        
@@ -291,21 +288,29 @@ class WriteUnit(Layer):
         return self.d_dim
 
 
+def OutputUnit(m_p, q, num_softmax = 20):
+    d = K.int_shape(m_p)[1]
+    assert K.int_shape(m_p)[1] == K.int_shape(q)[2]
+    
+    x = Concatenate([m_p, q])
+    x = Dense(d, activation='relu')(x)
+    softmax_ouput_layer = Dense(num_softmax, activation='softmax')(x)
+    
+    return softmax_ouput_layer
 
 
 def MAC_layer(c_i_1, q, cws, m_i_1, KB):
-    d = K.int_shape(c_i_1)[1]
-    print('c_i_1:    ', K.int_shape(c_i_1)[1])
-    #d = 
-    q_i = Dense(d, activation='linear')(q)
-    print('q_i:      ', K.int_shape(q_i))
-    c_i = ControlUnit()([c_i_1, q_i, cws])
-    print('c_i:      ', K.int_shape(c_i))
     
+    assert 2*K.int_shape(c_i_1)[1] == K.int_shape(q)[1] 
+    assert K.int_shape(c_i_1)[1] == K.int_shape(cws)[2]
+    assert K.int_shape(c_i_1)[1] == K.int_shape(m_i_1)[1]
+    assert K.int_shape(c_i_1)[1] == K.int_shape(KB)[3]
+    
+    d = K.int_shape(c_i_1)[1]
+    q_i = Dense(d, activation='linear')(q)
+    c_i = ControlUnit()([c_i_1, q_i, cws])    
     r_i = ReadUnit()([c_i, m_i_1, KB])
-    print('r_i:      ', K.int_shape(r_i))
     m_i = WriteUnit()([c_i, r_i, m_i_1])
-    print('m_i:      ', K.int_shape(m_i))
     return [c_i, m_i]
     
 
