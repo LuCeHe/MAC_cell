@@ -16,7 +16,7 @@ import numpy as np
 
 
 from keras.models import Sequential, Model
-from keras.layers import Dense, Input, concatenate, LSTM
+from keras.layers import Dense, Input, concatenate, LSTM, Lambda
 from keras.layers import TimeDistributed, Bidirectional
 from keras.preprocessing.sequence import pad_sequences
 import keras.backend as K
@@ -304,6 +304,9 @@ def test_kMAC_wO_wbiLSTM(k=3):
     #          Build model
     ########################################
 
+    def slice_questions(x, where):
+        return x[:, where, :]
+    
     # plug biLSTM    
     forward, backward = Bidirectional(LSTM(d, return_sequences=True), input_shape=(None, 1), merge_mode=None)(q_input)    
     
@@ -312,8 +315,12 @@ def test_kMAC_wO_wbiLSTM(k=3):
     
     # sentence representation
     lenSentence = maxLen 
-    fquestions = cws[:, lenSentence-1, :]
-    bquestions = cws[:, lenSentence, :]  
+    #fquestions = cws[:, lenSentence-1, :]
+    #bquestions = cws[:, lenSentence, :]  
+    
+    fquestions = Lambda(slice_questions,arguments={'where':lenSentence-1})(cws)    #cws[:, lenSentence-1, :]
+    bquestions = Lambda(slice_questions,arguments={'where':lenSentence})(cws)    #cws[:, lenSentence, :] 
+    
     q = concatenate([fquestions, bquestions], axis=1)
     print(fquestions)
     print('')
@@ -327,7 +334,17 @@ def test_kMAC_wO_wbiLSTM(k=3):
     shapes_data = [data.shape for data in input_data]
     print(shapes_data)
     print('')
-
+    layers = [c, q_input, m, k_input, forward, 
+              backward, cws, fquestions, bquestions,
+              q]
+    for layer in layers:
+        print(layer)
+    print('')
+    
+    for layer in layers:
+        print(K.int_shape(layer))
+    print('')
+    
     model = Model(inputs = input_layers, output = [c, softmax_output])    
     
     model.summary()
