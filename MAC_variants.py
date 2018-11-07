@@ -23,11 +23,11 @@ import numpy as np
 - [DONE] Control Unit test
 - [DONE] Read Unit
 - [DONE] Read Unit test
-- Write Unit
-- Write Unit test
-- Mac unit
-- check that they work on batches
-- check if the repeated matrices in each equation
+- [DONE] Write Unit
+- [DONE] Write Unit test
+- [DONE] Mac unit
+- [DONE] check that they work on batches
+- [DONE] check if the repeated matrices in each equation
 share parameters or not
 - CLEVR
 - implement self-attention:

@@ -16,10 +16,8 @@ import numpy as np
 
 
 from keras.models import Sequential, Model
-from keras.layers import LSTM
-from keras.layers import Dense, Input
-from keras.layers import TimeDistributed
-from keras.layers import Bidirectional
+from keras.layers import Dense, Input, concatenate, LSTM
+from keras.layers import TimeDistributed, Bidirectional
 from keras.preprocessing.sequence import pad_sequences
 import keras.backend as K
 
@@ -80,11 +78,9 @@ def test_ControlUnit():
     c_i_1 = np.random.uniform(0, 1, size=(batchSize,d))
     
     # test ControlUnit without training        
-    input_data = [c_i_1, q_i, cws]
+    input_data = [c_i_1, q_i, cws]  
   
-  
-    # build model  
-  
+    # build model    
   
     c_input = Input(shape=(d,), name='c_input')
     q_input = Input(shape=(d,), name='q_input')
@@ -202,8 +198,7 @@ def get_inputs_MAC(d, batchSize, biLSTM = True, maxLen = None):
         inputs_questions = Input(shape=(None,1), name='question')
         input_layers = [c_input, inputs_questions, m_input, k_input]
         input_data = [c_i_1, question, m_i_1, k_hw]
-
-
+        
     return input_data, input_layers
 
 
@@ -293,7 +288,7 @@ def test_kMAC_wO_wbiLSTM(k=3):
     
     # parameters
     
-    d = 2
+    d = 3
     batchSize = 2
     maxLen = 10
 
@@ -309,29 +304,33 @@ def test_kMAC_wO_wbiLSTM(k=3):
     #          Build model
     ########################################
 
-    # plug biLSTM
-    
-    forward, backward = Bidirectional(LSTM(d, return_sequences=True), input_shape=(None, 1), merge_mode=None)(q_input)
-    
-    print(K.int_shape(forward))
+    # plug biLSTM    
+    forward, backward = Bidirectional(LSTM(d, return_sequences=True), input_shape=(None, 1), merge_mode=None)(q_input)    
     
     # word representation
-    cws = K.concatenate([forward, backward], axis=1)
+    cws = concatenate([forward, backward], axis=1)
     
     # sentence representation
     lenSentence = maxLen 
     fquestions = cws[:, lenSentence-1, :]
     bquestions = cws[:, lenSentence, :]  
-    q = K.concatenate([fquestions, bquestions], axis=1)
-    
-    
+    q = concatenate([fquestions, bquestions], axis=1)
+    print(fquestions)
+    print('')
     for _ in range(k):
         c, m = MAC_layer(c, q, cws, m, k_input)
-
-    softmax_output = OutputUnit(m, q_input)
-    model = Model(inputs = input_layers, output = [c, softmax_output])
+    softmax_output = OutputUnit(m, q)
     
-    #model.summary()
+    shapes = [K.int_shape(layer) for layer in input_layers]
+    print(shapes)
+    print('')
+    shapes_data = [data.shape for data in input_data]
+    print(shapes_data)
+    print('')
+
+    model = Model(inputs = input_layers, output = [c, softmax_output])    
+    
+    model.summary()
     c_i, softmax_output_i = model.predict(input_data)
     print(c_i) 
     print('')
