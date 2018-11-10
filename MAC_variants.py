@@ -1,10 +1,34 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Mon Oct 22 22:13:12 2018
+# Copyright (c) 2018, 
+#
+# authors Luca Celotti
+# while students at Université de Sherbrooke
+# under the supervision of professor Jean Rouat
+#
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without modification,
+# are permitted provided that the following conditions are met:
+#
+#  - Redistributions of source code must retain the above copyright notice,
+#    this list of conditions and the following disclaimer.
+#  - Redistributions in binary form must reproduce the above copyright notice,
+#    this list of conditions and the following disclaimer in the documentation
+#    and/or other materials provided with the distribution.
+#  - Neither the name of the copyright holder nor the names of its contributors
+#    may be used to endorse or promote products derived from this software
+#    without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+# IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+# INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+# NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA,
+# OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+# WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
 
-@author: hey
-"""
 
 from numpy.random import seed
 seed(1)
@@ -12,9 +36,12 @@ from tensorflow import set_random_seed
 set_random_seed(2)
 
 from keras import backend as K
-from keras.layers import Dense, concatenate
+from keras.layers import Dense, concatenate, Input, Conv2D, Embedding, \
+                            Bidirectional, concatenate, LSTM, Lambda, \
+                            TimeDistributed, Bidirectional
 from keras.engine.topology import Layer
-
+from keras.applications.resnet50 import ResNet50
+    
 import numpy as np
 
 
@@ -302,6 +329,102 @@ def MAC_layer(c_i_1, q, cws, m_i_1, KB):
     return [c_i, m_i]
     
 
+class completeMACmodel_simple(object):
+    
+    ##############################################
+    #    - k MAC
+    #    - output and BiLSTM
+    #    - ResNet50
+    ##############################################
+    
+    def __init__(self,
+                 d=2, 
+                 batchSize=3, 
+                 maxLen=10, 
+                 p=3, 
+                 embDim=32):
+        
+        self.__dict__.update(d=d, 
+                             maxLen=maxLen,               
+                             p=p, 
+                             embDim=embDim)
+
+        self.build_model()
+        
+        
+    def build_model(self):
+        
+        ########################################
+        #    get input layers
+        ########################################
+        
+        input_images = Input(shape=(224, 224, 3), name='image')  
+        input_questions = Input(shape=(None,1), name='question')
+    
+    
+        initial_c = np.random.uniform(0, 1, size=[self.d])
+        c = K.variable(initial_c)
+
+        initial_m = np.random.uniform(0, 1, size=[self.d])
+        m = K.variable(initial_m)
+        
+        ########################################
+        #          Build model
+        ########################################
+    
+    
+        # ---------------- visual pipeline
+        
+        base_model = ResNet50(input_tensor=input_images, weights='imagenet', include_top=False)
+
+        # Freeze all convolutional ResNet50 layers
+        for layer in base_model.layers:
+            layer.trainable = False
+        x = base_model.get_layer('activation_40').output
+        
+        x = Conv2D(self.d, (3, 3), padding="same")(x)
+        
+        k_hwd = Conv2D(self.d, (3, 3), padding="same")(x)
+
+
+        # ---------------- language pipeline
+        
+        embed = Embedding(102, self.embDim)(input_questions)
+        
+        # plug biLSTM    
+        forward, backward = Bidirectional(LSTM(self.d, return_sequences=True), input_shape=(None, self.embDim), merge_mode=None)(embed)    
+        
+        # word representation
+        cws = concatenate([forward, backward], axis=1)
+        
+        # sentence representation
+        def slice_questions(x, where):
+            return x[:, where, :]
+
+        lenSentence = maxLen 
+        fquestions = Lambda(slice_questions,arguments={'where':lenSentence-1})(cws)    #cws[:, lenSentence-1, :]
+        bquestions = Lambda(slice_questions,arguments={'where':lenSentence})(cws)    #cws[:, lenSentence, :] 
+        
+        q = concatenate([fquestions, bquestions], axis=1)
+        
+        
+        # ---------------- multimodal pipeline
+        
+        # k MAC cells
+        for _ in range(self.p):
+            c, m = MAC_layer(c, q, cws, m, k_hwd)
+        softmax_output = OutputUnit(m, q)
+        self.model = Model(inputs = input_layers, output = [c, softmax_output])    
+        
+        self.model.summary()
+
+    def passRandomNumpyThroughModel(self):
+        pass
+    
+    def train(self):
+        pass
+    
+    
     
     
 class MAC_cell(Layer):
