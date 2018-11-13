@@ -39,8 +39,8 @@ set_random_seed(2)
 import numpy as np
 
 from keras.models import Sequential, Model
-from keras.layers import Dense, Input, concatenate, LSTM, Lambda
-from keras.layers import TimeDistributed, Bidirectional
+from keras.layers import Dense, Input, concatenate, LSTM, Lambda, Reshape
+from keras.layers import TimeDistributed, Bidirectional, Embedding, RepeatVector
 from keras.preprocessing.sequence import pad_sequences
 import keras.backend as K
 
@@ -177,11 +177,17 @@ def test_WriteUnit():
 
 
 
-def get_inputs_MAC(d, batchSize, biLSTM = True, maxLen = None):
+def get_inputs_MAC(d, 
+                   batchSize, 
+                   biLSTM = True, 
+                   maxLen = None, 
+                   embedding = False):
     
     # Inputs      
     question = generateBatchRandomQuestions(batchSize, maxLen)
-    question = question.reshape(batchSize, question.shape[1], 1)
+    
+    if not embedding:
+        question = question.reshape(batchSize, question.shape[1], 1)
     
     
     if biLSTM:
@@ -220,7 +226,11 @@ def get_inputs_MAC(d, batchSize, biLSTM = True, maxLen = None):
         input_data = [c_i_1, q, cws, m_i_1, k_hw]
 
     else:
-        inputs_questions = Input(shape=(None,1), name='question')
+        if not embedding:
+            inputs_questions = Input(shape=(None,1), name='question')
+        else:
+            inputs_questions = Input(shape=(None,), name='question')
+            
         input_layers = [c_input, inputs_questions, m_input, k_input]
         input_data = [c_i_1, question, m_i_1, k_hw]
         
@@ -356,6 +366,65 @@ def test_pMAC_wO_wbiLSTM(p=3):
     print('')
     print(softmax_output_i)
 
+
+def test_pMAC_wBiLSTM_wEmbedding(p=3):
+    
+    # parameters
+    
+    d = 3
+    batchSize = 2
+    maxLen = 10
+    embDim = 5
+    
+    
+
+    ########################################
+    #    get input data and input layers
+    ########################################
+    
+    input_data, input_layers = get_inputs_MAC(d, 
+                                              batchSize, 
+                                              biLSTM = False, 
+                                              maxLen = maxLen,
+                                              embedding = True)  
+    c, q_input, m, k_input = input_layers
+    
+    ########################################
+    #          Build model
+    ########################################
+
+    def slice_questions(x, where):
+        return x[:, where, :]
+    
+    
+    print(K.int_shape(q_input))
+    embed = Embedding(102, embDim)(q_input)
+    print(K.int_shape(embed))
+            
+    # plug biLSTM    
+    forward, backward = Bidirectional(LSTM(d, return_sequences=True), input_shape=(None, embDim), merge_mode=None)(embed)    
+    
+    # word representation
+    cws = concatenate([forward, backward], axis=1)
+    
+    # sentence representation
+    lenSentence = maxLen 
+    fquestions = Lambda(slice_questions,arguments={'where':lenSentence-1})(cws)    #cws[:, lenSentence-1, :]
+    bquestions = Lambda(slice_questions,arguments={'where':lenSentence})(cws)    #cws[:, lenSentence, :] 
+    
+    q = concatenate([fquestions, bquestions], axis=1)
+    
+    for _ in range(p):
+        c, m = MAC_layer(c, q, cws, m, k_input)
+    softmax_output = OutputUnit(m, q)
+    model = Model(inputs = input_layers, output = [c, softmax_output])    
+    
+    model.summary()
+    c_i, softmax_output_i = model.predict(input_data)
+    print(c_i) 
+    print('')
+    print(softmax_output_i)
+
     
 def test_ResNet50():
     
@@ -382,9 +451,36 @@ def test_ResNet50():
     model = Model(input_tensor, x)
     model.summary()
     
-def test_simpleMAC():
-    MAC = completeMACmodel_simple()
+def test_simpleMAC(maxLen=None):
+    MAC = completeMACmodel_simple(maxLen=maxLen)
     model = MAC.model()
+    
+    
+def test_RepeatNoneTimes():
+    
+    d = 2
+
+    c = K.random_normal((None, d), dtype=None)
+    m = Input(shape=(None, 32))
+    
+    def repeat_vector(args):
+        layer_to_repeat = args[0]
+        reference_layer = args[1]
+        return RepeatVector(K.shape(reference_layer)[0])(layer_to_repeat)
+    
+    c_batch = Lambda(repeat_vector) ([c, m])
+    
+    print(c)
+    print('')
+    print(c_batch)
+    print('')
+    #print(K.int_shape(c_batch))
+    
+    #c_batch = Lambda(lambda x: K.squeeze(x, 0))(c_batch)   #Reshape((-1,1,d,), name='predictions')(c_batch)
+    
+    #c_batch = Lambda(lambda y: K.squeeze(y, axis=1))(c_batch)
+    
+    print(c_batch)
     
     
 if __name__ == '__main__':
@@ -396,5 +492,11 @@ if __name__ == '__main__':
     #test_pMAC()
     #test_pMAC_wOutput()   
     #test_pMAC_wO_wbiLSTM()
-    test_simpleMAC()
+    #test_pMAC_wBiLSTM_wEmbedding()
+    #test_simpleMAC(maxLen=10)
+    test_RepeatNoneTimes()
+
+
+
+
     

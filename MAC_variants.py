@@ -38,10 +38,11 @@ set_random_seed(2)
 from keras import backend as K
 from keras.layers import Dense, concatenate, Input, Conv2D, Embedding, \
                             Bidirectional, concatenate, LSTM, Lambda, \
-                            TimeDistributed, Bidirectional
+                            TimeDistributed, Bidirectional, RepeatVector
 from keras.engine.topology import Layer
 from keras.applications.resnet50 import ResNet50
-    
+from keras import initializers
+
 import numpy as np
 
 
@@ -316,6 +317,10 @@ def OutputUnit(m_p, q, num_softmax = 20):
 
 def MAC_layer(c_i_1, q, cws, m_i_1, KB):
     
+    print(c_i_1)
+    print('')
+    print(q)
+    
     assert 2*K.int_shape(c_i_1)[1] == K.int_shape(q)[1] 
     assert K.int_shape(c_i_1)[1] == K.int_shape(cws)[2]
     assert K.int_shape(c_i_1)[1] == K.int_shape(m_i_1)[1]
@@ -340,11 +345,12 @@ class completeMACmodel_simple(object):
     def __init__(self,
                  d=2, 
                  batchSize=3, 
-                 maxLen=10, 
+                 maxLen=None, 
                  p=3, 
                  embDim=32):
         
         self.__dict__.update(d=d, 
+                             batchSize=batchSize,
                              maxLen=maxLen,               
                              p=p, 
                              embDim=embDim)
@@ -354,19 +360,39 @@ class completeMACmodel_simple(object):
         
     def build_model(self):
         
+        if self.maxLen == None:
+            raise Exception("""Define maxLen for the questions, or figure
+                            out how to fix it in the model to accept batches of
+                            variable lengths""")
+        
+        
         ########################################
         #    get input layers
         ########################################
         
         input_images = Input(shape=(224, 224, 3), name='image')  
-        input_questions = Input(shape=(None,1), name='question')
+        input_questions = Input(shape=(None,), name='question')
     
-    
-        initial_c = np.random.uniform(0, 1, size=[self.d])
-        c = K.variable(initial_c)
-
-        initial_m = np.random.uniform(0, 1, size=[self.d])
-        m = K.variable(initial_m)
+        # FIXME: not that cool to define the batchSize here,
+        # I think it would be better to define it at training time
+        #initial_c = np.random.uniform(0, 1, size=[1, self.d])
+        #c = K.variable(initial_c)
+        #c = K.ones_like(K.random_normal((None, self.d), dtype=None))
+        #initial_m = np.random.uniform(0, 1, size=[1, self.d])
+        #m = K.variable(initial_m)
+        #m = K.ones_like(K.random_normal((None, self.d), dtype=None))
+        
+        c_i = K.random_normal((1, self.d), dtype=None)
+        m_i = K.random_normal((1, self.d), dtype=None)
+        
+        def repeat_vector(args):
+            layer_to_repeat = args[0]
+            reference_layer = args[1]
+            return RepeatVector(K.shape(reference_layer)[0])(layer_to_repeat)
+        
+        c = Lambda(repeat_vector) ([c_i, input_questions])
+        m = Lambda(repeat_vector) ([m_i, input_questions])
+        
         
         ########################################
         #          Build model
@@ -401,7 +427,8 @@ class completeMACmodel_simple(object):
         def slice_questions(x, where):
             return x[:, where, :]
 
-        lenSentence = maxLen 
+        #print(K.int_shape(cws))
+        lenSentence = self.maxLen 
         fquestions = Lambda(slice_questions,arguments={'where':lenSentence-1})(cws)    #cws[:, lenSentence-1, :]
         bquestions = Lambda(slice_questions,arguments={'where':lenSentence})(cws)    #cws[:, lenSentence, :] 
         
