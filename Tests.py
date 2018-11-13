@@ -44,6 +44,7 @@ from keras.layers import TimeDistributed, Bidirectional, Embedding, RepeatVector
 from keras.preprocessing.sequence import pad_sequences
 import keras.backend as K
 
+
 from MAC_variants import ControlUnit, ReadUnit, WriteUnit, MAC_layer, OutputUnit, \
                             completeMACmodel_simple
 
@@ -441,6 +442,7 @@ def test_ResNet50():
     # first: train only the top layers (which were randomly initialized)
     # i.e. freeze all convolutional InceptionV3 layers
     for layer in base_model.layers:
+        print(layer.name)
         layer.trainable = False
     x = base_model.get_layer('activation_40').output
     
@@ -451,37 +453,12 @@ def test_ResNet50():
     model = Model(input_tensor, x)
     model.summary()
     
+    
 def test_simpleMAC(maxLen=None):
     MAC = completeMACmodel_simple(maxLen=maxLen)
     model = MAC.model()
     
-    
-def test_RepeatNoneTimes():
-    
-    d = 2
-
-    c = K.random_normal((None, d), dtype=None)
-    m = Input(shape=(None, 32))
-    
-    def repeat_vector(args):
-        layer_to_repeat = args[0]
-        reference_layer = args[1]
-        return RepeatVector(K.shape(reference_layer)[0])(layer_to_repeat)
-    
-    c_batch = Lambda(repeat_vector) ([c, m])
-    
-    print(c)
-    print('')
-    print(c_batch)
-    print('')
-    #print(K.int_shape(c_batch))
-    
-    #c_batch = Lambda(lambda x: K.squeeze(x, 0))(c_batch)   #Reshape((-1,1,d,), name='predictions')(c_batch)
-    
-    #c_batch = Lambda(lambda y: K.squeeze(y, axis=1))(c_batch)
-    
-    print(c_batch)
-    
+    model.summary()
     
 if __name__ == '__main__':
     
@@ -492,11 +469,10 @@ if __name__ == '__main__':
     #test_pMAC()
     #test_pMAC_wOutput()   
     #test_pMAC_wO_wbiLSTM()
+    #test_ResNet50()
     #test_pMAC_wBiLSTM_wEmbedding()
-    #test_simpleMAC(maxLen=10)
-    test_RepeatNoneTimes()
-
-
+    test_simpleMAC(maxLen=10)
+    
 
 
     

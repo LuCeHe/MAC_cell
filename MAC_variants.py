@@ -35,12 +35,13 @@ seed(1)
 from tensorflow import set_random_seed
 set_random_seed(2)
 
-from keras import backend as K
+#from keras import backend as K
+import keras.backend.tensorflow_backend as K
+from keras.applications.resnet50 import ResNet50
 from keras.layers import Dense, concatenate, Input, Conv2D, Embedding, \
                             Bidirectional, concatenate, LSTM, Lambda, \
                             TimeDistributed, Bidirectional, RepeatVector
 from keras.engine.topology import Layer
-from keras.applications.resnet50 import ResNet50
 from keras import initializers
 
 import numpy as np
@@ -331,7 +332,36 @@ def MAC_layer(c_i_1, q, cws, m_i_1, KB):
     c_i = ControlUnit()([c_i_1, q_i, cws])    
     r_i = ReadUnit()([c_i, m_i_1, KB])
     m_i = WriteUnit()([c_i, r_i, m_i_1])
+
     return [c_i, m_i]
+
+
+class InternalStateInitializer(Layer):
+    def __init__(self, d_dim, **kwargs):        
+        super(InternalStateInitializer, self).__init__(**kwargs)
+        self.d_dim = d_dim
+
+    def build(self, input_shape):
+        
+        initial_internal_d_value = np.random.uniform(0, 1, size=[self.d_dim])
+        self.i_d   = K.variable(initial_internal_d_value)
+
+        self.trainable_weights = [self.i_d]
+        super(InternalStateInitializer, self).build(input_shape)  
+  
+    def call(self, inputs, mask=None):
+        batchSize = K.shape(inputs)[0]
+        print(batchSize)
+        
+        i_d = K._to_tensor(self.i_d, dtype='float32')
+        i_d = K.repeat_elements(i_d, batchSize, axis=0)
+        
+        print(i_d)
+        
+        return i_d  
+  
+    def get_output_shape_for(self, input_shape):
+        return self.d_dim
     
 
 class completeMACmodel_simple(object):
@@ -382,16 +412,18 @@ class completeMACmodel_simple(object):
         #m = K.variable(initial_m)
         #m = K.ones_like(K.random_normal((None, self.d), dtype=None))
         
-        c_i = K.random_normal((1, self.d), dtype=None)
-        m_i = K.random_normal((1, self.d), dtype=None)
+        # FIXME: I input the input_questions even if I don`t do anything
+        # with it, there must be a better way.
+        c = InternalStateInitializer(d_dim = self.d)(input_questions)
+        m = InternalStateInitializer(d_dim = self.d)(input_questions)
         
-        def repeat_vector(args):
-            layer_to_repeat = args[0]
-            reference_layer = args[1]
-            return RepeatVector(K.shape(reference_layer)[0])(layer_to_repeat)
+        #def repeat_vector(args):
+        #    layer_to_repeat = args[0]
+        #    reference_layer = args[1]
+        #    return RepeatVector(K.shape(reference_layer)[0])(layer_to_repeat)
         
-        c = Lambda(repeat_vector) ([c_i, input_questions])
-        m = Lambda(repeat_vector) ([m_i, input_questions])
+        #c = Lambda(repeat_vector) ([c_i, input_questions])
+        #m = Lambda(repeat_vector) ([m_i, input_questions])
         
         
         ########################################
@@ -440,6 +472,7 @@ class completeMACmodel_simple(object):
         # k MAC cells
         for _ in range(self.p):
             c, m = MAC_layer(c, q, cws, m, k_hwd)
+            
         softmax_output = OutputUnit(m, q)
         self.model = Model(inputs = input_layers, output = [c, softmax_output])    
         
