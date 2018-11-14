@@ -46,7 +46,7 @@ import keras.backend as K
 
 
 from MAC_variants import ControlUnit, ReadUnit, WriteUnit, MAC_layer, OutputUnit, \
-                            completeMACmodel_simple
+                         InternalStateInitializer, completeMACmodel_simple
 
 
 def generateBatchRandomQuestions(batchSize, maxLen):
@@ -403,7 +403,9 @@ def test_pMAC_wBiLSTM_wEmbedding(p=3):
     print(K.int_shape(embed))
             
     # plug biLSTM    
-    forward, backward = Bidirectional(LSTM(d, return_sequences=True), input_shape=(None, embDim), merge_mode=None)(embed)    
+    forward, backward = Bidirectional(LSTM(d, return_sequences=True), 
+                                      input_shape=(None, embDim), 
+                                      merge_mode=None)(embed)    
     
     # word representation
     cws = concatenate([forward, backward], axis=1)
@@ -453,7 +455,36 @@ def test_ResNet50():
     model = Model(input_tensor, x)
     model.summary()
     
+
+def test_Internal():
     
+    d = 3
+    batchSize = 4
+    maxLen = 10
+
+    input_data, input_layers = get_inputs_MAC(d, 
+                                              batchSize, 
+                                              biLSTM = False, 
+                                              maxLen = maxLen,
+                                              embedding = True)  
+    _, q_input, _, _ = input_layers
+    _, q_data, _, _ = input_data
+
+
+    print('q_data:    ', q_data.shape)
+    c = InternalStateInitializer(d_dim = d)(q_input)
+    
+    model = Model(q_input, c)
+    model.summary()
+    
+    c = model.predict(q_data)
+    
+    print('c:         ', c)
+
+
+
+
+   
 def test_simpleMAC(maxLen=None):
     MAC = completeMACmodel_simple(maxLen=maxLen)
     model = MAC.model()
@@ -472,6 +503,7 @@ if __name__ == '__main__':
     #test_ResNet50()
     #test_pMAC_wBiLSTM_wEmbedding()
     test_simpleMAC(maxLen=10)
+    #test_Internal()
     
 
 

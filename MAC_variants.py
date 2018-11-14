@@ -38,6 +38,7 @@ set_random_seed(2)
 #from keras import backend as K
 import keras.backend.tensorflow_backend as K
 from keras.applications.resnet50 import ResNet50
+from keras.models import Sequential, Model
 from keras.layers import Dense, concatenate, Input, Conv2D, Embedding, \
                             Bidirectional, concatenate, LSTM, Lambda, \
                             TimeDistributed, Bidirectional, RepeatVector
@@ -318,10 +319,13 @@ def OutputUnit(m_p, q, num_softmax = 20):
 
 def MAC_layer(c_i_1, q, cws, m_i_1, KB):
     
-    print(c_i_1)
+    print('c_i_1:   ', c_i_1)
     print('')
-    print(q)
+    print('q:       ', q)
     
+    print('')
+    print(K.shape(c_i_1)[0])
+    assert 2*K.int_shape(c_i_1) == K.int_shape(q)
     assert 2*K.int_shape(c_i_1)[1] == K.int_shape(q)[1] 
     assert K.int_shape(c_i_1)[1] == K.int_shape(cws)[2]
     assert K.int_shape(c_i_1)[1] == K.int_shape(m_i_1)[1]
@@ -351,12 +355,11 @@ class InternalStateInitializer(Layer):
   
     def call(self, inputs, mask=None):
         batchSize = K.shape(inputs)[0]
-        print(batchSize)
         
-        i_d = K._to_tensor(self.i_d, dtype='float32')
-        i_d = K.repeat_elements(i_d, batchSize, axis=0)
+        zeros = K.zeros((batchSize, self.d_dim))
+        i_d = K.bias_add(zeros, self.i_d, data_format=None)  
         
-        print(i_d)
+        print(K.int_shape(i_d))
         
         return i_d  
   
@@ -402,30 +405,16 @@ class completeMACmodel_simple(object):
         
         input_images = Input(shape=(224, 224, 3), name='image')  
         input_questions = Input(shape=(None,), name='question')
-    
-        # FIXME: not that cool to define the batchSize here,
-        # I think it would be better to define it at training time
-        #initial_c = np.random.uniform(0, 1, size=[1, self.d])
-        #c = K.variable(initial_c)
-        #c = K.ones_like(K.random_normal((None, self.d), dtype=None))
-        #initial_m = np.random.uniform(0, 1, size=[1, self.d])
-        #m = K.variable(initial_m)
-        #m = K.ones_like(K.random_normal((None, self.d), dtype=None))
+        
+        input_layers = [input_images, input_questions]
         
         # FIXME: I input the input_questions even if I don`t do anything
         # with it, there must be a better way.
         c = InternalStateInitializer(d_dim = self.d)(input_questions)
         m = InternalStateInitializer(d_dim = self.d)(input_questions)
         
-        #def repeat_vector(args):
-        #    layer_to_repeat = args[0]
-        #    reference_layer = args[1]
-        #    return RepeatVector(K.shape(reference_layer)[0])(layer_to_repeat)
-        
-        #c = Lambda(repeat_vector) ([c_i, input_questions])
-        #m = Lambda(repeat_vector) ([m_i, input_questions])
-        
-        
+        print('c:                      ', K.int_shape(c))
+        print('m:                      ', K.int_shape(m))
         ########################################
         #          Build model
         ########################################
@@ -468,11 +457,16 @@ class completeMACmodel_simple(object):
         
         
         # ---------------- multimodal pipeline
-        
+        print('')
+        print('')
         # k MAC cells
         for _ in range(self.p):
+            print('c:                      ', K.shape(c))
+            print('c:                      ', K.int_shape(c))
+            print('')
             c, m = MAC_layer(c, q, cws, m, k_hwd)
-            
+        print('c:                      ', K.shape(c))
+        print('')   
         softmax_output = OutputUnit(m, q)
         self.model = Model(inputs = input_layers, output = [c, softmax_output])    
         
@@ -507,3 +501,9 @@ class ACT_RMAC_cell(Layer):
     pass
 
 
+if __name__ == '__main__':
+    
+    MAC = completeMACmodel_simple(maxLen=10)
+    model = MAC.model()
+    
+    model.summary()
