@@ -78,7 +78,9 @@ class ControlUnit(Layer):
         super(ControlUnit, self).__init__(**kwargs)
 
     def build(self, input_shape):
-        assert input_shape[0][1] == input_shape[1][1]
+        
+        assert input_shape[0][1] == input_shape[1][1]       # c_i_1 with q_i
+        assert input_shape[0][1] == input_shape[2][2]       # c_i_1 with cws
         
         self.d_dim = input_shape[0][1]
     
@@ -317,7 +319,7 @@ def OutputUnit(m_p, q, num_softmax = 20):
     return softmax_ouput_layer
 
 
-def MAC_layer(c_i_1, q, cws, m_i_1, KB):
+def MAC_layer(d, c_i_1, q, cws, m_i_1, KB):
     
     print('c_i_1:   ', c_i_1)
     print('')
@@ -325,13 +327,9 @@ def MAC_layer(c_i_1, q, cws, m_i_1, KB):
     
     print('')
     print(K.shape(c_i_1)[0])
-    assert 2*K.int_shape(c_i_1) == K.int_shape(q)
-    assert 2*K.int_shape(c_i_1)[1] == K.int_shape(q)[1] 
-    assert K.int_shape(c_i_1)[1] == K.int_shape(cws)[2]
-    assert K.int_shape(c_i_1)[1] == K.int_shape(m_i_1)[1]
-    assert K.int_shape(c_i_1)[1] == K.int_shape(KB)[3]
+    # FIXME: plug again some of the following asssertions
+    #assert 2*K.int_shape(c_i_1)[1] == K.int_shape(q)[1] 
     
-    d = K.int_shape(c_i_1)[1]
     q_i = Dense(d, activation='linear')(q)
     c_i = ControlUnit()([c_i_1, q_i, cws])    
     r_i = ReadUnit()([c_i, m_i_1, KB])
@@ -354,12 +352,14 @@ class InternalStateInitializer(Layer):
         super(InternalStateInitializer, self).build(input_shape)  
   
     def call(self, inputs, mask=None):
-        batchSize = K.shape(inputs)[0]
+        #batchSize = K.shape(inputs)[0]
+        #print(K.shape(inputs))
         
-        zeros = K.zeros((batchSize, self.d_dim))
+        zeros = K.zeros((1, self.d_dim))
         i_d = K.bias_add(zeros, self.i_d, data_format=None)  
         
         print(K.int_shape(i_d))
+        print(i_d)
         
         return i_d  
   
@@ -410,8 +410,16 @@ class completeMACmodel_simple(object):
         
         # FIXME: I input the input_questions even if I don`t do anything
         # with it, there must be a better way.
-        c = InternalStateInitializer(d_dim = self.d)(input_questions)
-        m = InternalStateInitializer(d_dim = self.d)(input_questions)
+        
+        initial_c_value = np.random.uniform(0, 1, size=[self.d])
+        c0   = K._to_tensor(K.variable(initial_c_value), dtype='float32')
+        initial_m_value = np.random.uniform(0, 1, size=[self.d])
+        m0   = K._to_tensor(K.variable(initial_m_value), dtype='float32')        
+        
+        c = Input(tensor=c0, name='c_0', batch_shape=(None, self.d))
+        m = Input(tensor=m0, name='m_0', batch_shape=(None, self.d))
+        #c = InternalStateInitializer(d_dim = self.d)(input_questions)
+        #m = InternalStateInitializer(d_dim = self.d)(input_questions)
         
         print('c:                      ', K.int_shape(c))
         print('m:                      ', K.int_shape(m))
@@ -464,7 +472,7 @@ class completeMACmodel_simple(object):
             print('c:                      ', K.shape(c))
             print('c:                      ', K.int_shape(c))
             print('')
-            c, m = MAC_layer(c, q, cws, m, k_hwd)
+            c, m = MAC_layer(self.d, c, q, cws, m, k_hwd)
         print('c:                      ', K.shape(c))
         print('')   
         softmax_output = OutputUnit(m, q)
@@ -507,3 +515,13 @@ if __name__ == '__main__':
     model = MAC.model()
     
     model.summary()
+    
+    
+    
+    #d = 3
+
+    #inputs_questions = Input(shape=(20,), name='question')
+    #c = InternalStateInitializer(d_dim = d)(inputs_questions)
+    #print('c:                      ', K.shape(c))
+    #print('c:                      ', K.int_shape(c))    
+    #model = Model(inputs_questions, c)

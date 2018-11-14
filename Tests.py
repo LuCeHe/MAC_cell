@@ -473,7 +473,8 @@ def test_Internal():
 
     print('q_data:    ', q_data.shape)
     c = InternalStateInitializer(d_dim = d)(q_input)
-    
+    print('c:                      ', K.shape(c))
+    print('c:                      ', K.int_shape(c))    
     model = Model(q_input, c)
     model.summary()
     
@@ -482,6 +483,18 @@ def test_Internal():
     print('c:         ', c)
 
 
+            
+
+
+def test_simplerInternal():
+    
+    d = 3
+
+    inputs_questions = Input(shape=(20,), name='question')
+    c = InternalStateInitializer(d_dim = d)(inputs_questions)
+    print('c:                      ', K.shape(c))
+    print('c:                      ', K.int_shape(c))    
+    model = Model(inputs_questions, c)
 
 
    
@@ -502,8 +515,9 @@ if __name__ == '__main__':
     #test_pMAC_wO_wbiLSTM()
     #test_ResNet50()
     #test_pMAC_wBiLSTM_wEmbedding()
-    test_simpleMAC(maxLen=10)
+    #test_simpleMAC(maxLen=10)
     #test_Internal()
+    test_simplerInternal()
     
 
 
