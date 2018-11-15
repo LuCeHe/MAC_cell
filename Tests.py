@@ -46,7 +46,7 @@ import keras.backend as K
 
 
 from MAC_variants import ControlUnit, ReadUnit, WriteUnit, MAC_layer, OutputUnit, \
-                         InternalStateInitializer, completeMACmodel_simple
+                         completeMACmodel_simple
 
 
 def generateBatchRandomQuestions(batchSize, maxLen):
@@ -454,47 +454,7 @@ def test_ResNet50():
     
     model = Model(input_tensor, x)
     model.summary()
-    
-
-def test_Internal():
-    
-    d = 3
-    batchSize = 4
-    maxLen = 10
-
-    input_data, input_layers = get_inputs_MAC(d, 
-                                              batchSize, 
-                                              biLSTM = False, 
-                                              maxLen = maxLen,
-                                              embedding = True)  
-    _, q_input, _, _ = input_layers
-    _, q_data, _, _ = input_data
-
-
-    print('q_data:    ', q_data.shape)
-    c = InternalStateInitializer(d_dim = d)(q_input)
-    print('c:                      ', K.shape(c))
-    print('c:                      ', K.int_shape(c))    
-    model = Model(q_input, c)
-    model.summary()
-    
-    c = model.predict(q_data)
-    
-    print('c:         ', c)
-
-
-            
-
-
-def test_simplerInternal():
-    
-    d = 3
-
-    inputs_questions = Input(shape=(20,), name='question')
-    c = InternalStateInitializer(d_dim = d)(inputs_questions)
-    print('c:                      ', K.shape(c))
-    print('c:                      ', K.int_shape(c))    
-    model = Model(inputs_questions, c)
+                
 
 
    
@@ -503,6 +463,21 @@ def test_simpleMAC(maxLen=None):
     model = MAC.model()
     
     model.summary()
+    
+    ########################################
+    #    get input data and input layers
+    ########################################
+    
+    input_data, _ = get_inputs_MAC(d, 
+                                   batchSize, 
+                                   biLSTM = False, 
+                                   maxLen = maxLen,
+                                   embedding = True)  
+    c, q_input, m, k_input = input_layers
+
+    softmax = model.predict(input_data)
+
+
     
 if __name__ == '__main__':
     

@@ -47,7 +47,7 @@ Created on Tue Nov  6 23:17:58 2018
  - [DONE] check why images have 4 dims
  - [DONE] paddled lanugage and images correct size
  - [DONE] plug BiLSTM with MAC
- - plug RESNET50 with MAC
+ - [DONE] plug RESNET50 with MAC
  - plug RESNET101 with MAC (converter)
  
  
@@ -164,12 +164,10 @@ def test():
     print('')
     print(d['info'])
 
-if __name__ == '__main__':
+def test_generator():
     
     batchSize = 11
-    #test()
-    #CLEVR_generator()
-    #build_CLEVR_Vocabulary()
+    
     begin = time.time()
     generator = CLEVR_generator(batchSize = batchSize)
     end = time.time()
@@ -190,4 +188,21 @@ if __name__ == '__main__':
         print('')
         
     print('it took %ds/sample to sample'%(TotSamplingTime/nSamples))    
+
+
+def train_MAC_on_CLEVR():
+    MAC = completeMACmodel_simple(d=2,  
+                                  maxLen=None, 
+                                  p=3, 
+                                  embDim=32)
+    model = MAC.model
+    
+    model.summary()
+
+    
+if __name__ == '__main__':
+    
+    #test()
+    #CLEVR_generator()
+    #build_CLEVR_Vocabulary()
     

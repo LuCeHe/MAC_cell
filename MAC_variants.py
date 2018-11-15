@@ -45,6 +45,8 @@ from keras.layers import Dense, concatenate, Input, Conv2D, Embedding, \
 from keras.engine.topology import Layer
 from keras import initializers
 
+import tensorflow as tf
+
 import numpy as np
 
 
@@ -336,36 +338,7 @@ def MAC_layer(d, c_i_1, q, cws, m_i_1, KB):
     m_i = WriteUnit()([c_i, r_i, m_i_1])
 
     return [c_i, m_i]
-
-
-class InternalStateInitializer(Layer):
-    def __init__(self, d_dim, **kwargs):        
-        super(InternalStateInitializer, self).__init__(**kwargs)
-        self.d_dim = d_dim
-
-    def build(self, input_shape):
-        
-        initial_internal_d_value = np.random.uniform(0, 1, size=[self.d_dim])
-        self.i_d   = K.variable(initial_internal_d_value)
-
-        self.trainable_weights = [self.i_d]
-        super(InternalStateInitializer, self).build(input_shape)  
   
-    def call(self, inputs, mask=None):
-        #batchSize = K.shape(inputs)[0]
-        #print(K.shape(inputs))
-        
-        zeros = K.zeros((1, self.d_dim))
-        i_d = K.bias_add(zeros, self.i_d, data_format=None)  
-        
-        print(K.int_shape(i_d))
-        print(i_d)
-        
-        return i_d  
-  
-    def get_output_shape_for(self, input_shape):
-        return self.d_dim
-    
 
 class completeMACmodel_simple(object):
     
@@ -376,14 +349,12 @@ class completeMACmodel_simple(object):
     ##############################################
     
     def __init__(self,
-                 d=2, 
-                 batchSize=3, 
+                 d=2,  
                  maxLen=None, 
                  p=3, 
                  embDim=32):
         
         self.__dict__.update(d=d, 
-                             batchSize=batchSize,
                              maxLen=maxLen,               
                              p=p, 
                              embDim=embDim)
@@ -408,21 +379,13 @@ class completeMACmodel_simple(object):
         
         input_layers = [input_images, input_questions]
         
-        # FIXME: I input the input_questions even if I don`t do anything
-        # with it, there must be a better way.
+        def dynamic_zeros(x, d):
+            b = tf.shape(x)[0]
+            return tf.zeros(tf.stack([b, d]))
         
-        initial_c_value = np.random.uniform(0, 1, size=[self.d])
-        c0   = K._to_tensor(K.variable(initial_c_value), dtype='float32')
-        initial_m_value = np.random.uniform(0, 1, size=[self.d])
-        m0   = K._to_tensor(K.variable(initial_m_value), dtype='float32')        
+        c = Lambda(dynamic_zeros,arguments={'d': self.d})(input_images)
+        m = Lambda(dynamic_zeros,arguments={'d': self.d})(input_images)
         
-        c = Input(tensor=c0, name='c_0', batch_shape=(None, self.d))
-        m = Input(tensor=m0, name='m_0', batch_shape=(None, self.d))
-        #c = InternalStateInitializer(d_dim = self.d)(input_questions)
-        #m = InternalStateInitializer(d_dim = self.d)(input_questions)
-        
-        print('c:                      ', K.int_shape(c))
-        print('m:                      ', K.int_shape(m))
         ########################################
         #          Build model
         ########################################
@@ -456,7 +419,6 @@ class completeMACmodel_simple(object):
         def slice_questions(x, where):
             return x[:, where, :]
 
-        #print(K.int_shape(cws))
         lenSentence = self.maxLen 
         fquestions = Lambda(slice_questions,arguments={'where':lenSentence-1})(cws)    #cws[:, lenSentence-1, :]
         bquestions = Lambda(slice_questions,arguments={'where':lenSentence})(cws)    #cws[:, lenSentence, :] 
@@ -465,20 +427,14 @@ class completeMACmodel_simple(object):
         
         
         # ---------------- multimodal pipeline
-        print('')
-        print('')
+        
         # k MAC cells
         for _ in range(self.p):
-            print('c:                      ', K.shape(c))
-            print('c:                      ', K.int_shape(c))
-            print('')
             c, m = MAC_layer(self.d, c, q, cws, m, k_hwd)
-        print('c:                      ', K.shape(c))
-        print('')   
+            
         softmax_output = OutputUnit(m, q)
-        self.model = Model(inputs = input_layers, output = [c, softmax_output])    
+        self.model = Model(inputs = input_layers, output = [softmax_output])    
         
-        self.model.summary()
 
     def passRandomNumpyThroughModel(self):
         pass
@@ -512,16 +468,8 @@ class ACT_RMAC_cell(Layer):
 if __name__ == '__main__':
     
     MAC = completeMACmodel_simple(maxLen=10)
-    model = MAC.model()
+    model = MAC.model
     
     model.summary()
     
     
-    
-    #d = 3
-
-    #inputs_questions = Input(shape=(20,), name='question')
-    #c = InternalStateInitializer(d_dim = d)(inputs_questions)
-    #print('c:                      ', K.shape(c))
-    #print('c:                      ', K.int_shape(c))    
-    #model = Model(inputs_questions, c)
