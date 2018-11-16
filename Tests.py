@@ -180,16 +180,22 @@ def test_ReadUnit_Gradients():
     
     model.compile(optimizer='sgd', loss='binary_crossentropy')
 
-    for layer in model.layers:
-        print(layer)
+    #for layer in model.layers:
+    #    print(layer)
     
     print('')
     weights = model.trainable_weights # weight tensors
-    #weights = [weight for weight in weights if model.get_layer(weight.name[:-2]).trainable] # filter down weights tensors to only ones which are trainable
-    gradients = model.optimizer.get_gradients(model.total_loss, weights) # gradient tensors
     
-    print(weights)
+    for weight in weights:
+        print(weight)
+    print('')
 
+    #weights = [weight for weight in weights if model.get_layer(weight.name[:-2]).trainable] # filter down weights tensors to only ones which are trainable
+    gradients = model.optimizer.get_gradients(model.output, k_input) # gradient tensors
+    
+    #print(weights)
+    
+    model.fit(input_data, c_i)
 
 def test_WriteUnit():
     d = 3

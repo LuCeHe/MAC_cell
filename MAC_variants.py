@@ -158,34 +158,73 @@ class ReadUnit(Layer):
         self.d_dim = input_shape[0][1]
         
         # initial values of the learning parameters
-        initial_W_ddm_value = np.random.uniform(0, 1, size=[self.d_dim, self.d_dim]) 
-        initial_b_dm_value = np.random.uniform(0, 1, size=[self.d_dim])
+        #initial_W_ddm_value = np.random.uniform(0, 1, size=[self.d_dim, self.d_dim]) 
+        #initial_b_dm_value = np.random.uniform(0, 1, size=[self.d_dim])
+#         
+#         initial_W_ddk_value = np.random.uniform(0, 1, size=[self.d_dim, self.d_dim]) 
+#         initial_b_dk_value = np.random.uniform(0, 1, size=[self.d_dim])
+#         
+#         initial_W_d2d_value = np.random.uniform(0, 1, size=[self.d_dim, 2*self.d_dim])
+#         initial_b_d1_value = np.random.uniform(0, 1, size=[self.d_dim])
+#     
+#         initial_W_dd_value = np.random.uniform(0, 1, size=[self.d_dim, self.d_dim])
+#         initial_b_d2_value = np.random.uniform(0, 1, size=[self.d_dim])
+# 
+# 
+# 
+#         self.W_ddm = K.variable(initial_W_ddm_value)
+#         self.b_dm  = K.variable(initial_b_dm_value)
+# 
+#         self.W_ddk = K.variable(initial_W_ddk_value)
+#         self.b_dk  = K.variable(initial_b_dk_value)
+# 
+#         self.W_d2d = K.variable(initial_W_d2d_value)
+#         self.b_d1   = K.variable(initial_b_d1_value)
+#     
+#         self.W_dd  = K.variable(initial_W_dd_value)
+#         self.b_d2   = K.variable(initial_b_d2_value)
+#         
+
+#         self.trainable_weights = [self.W_ddm, self.b_dm, self.W_ddk, self.b_dk,
+#                                   self.W_d2d, self.b_d1, self.W_dd, self.b_d2]
+
+        self.W_ddm = self.add_weight(name='kernel', 
+                                     shape=(self.d_dim, self.d_dim),
+                                     initializer='uniform',
+                                     trainable=True)
+        self.b_dm  = self.add_weight(name='kernel', 
+                                     shape=(self.d_dim, ),
+                                     initializer='uniform',
+                                     trainable=True)
+ 
+        self.W_ddk = self.add_weight(name='kernel', 
+                                     shape=(self.d_dim, self.d_dim),
+                                     initializer='uniform',
+                                     trainable=True)
+        self.b_dk  = self.add_weight(name='kernel', 
+                                     shape=(self.d_dim, ),
+                                     initializer='uniform',
+                                     trainable=True)
+ 
+        self.W_d2d = self.add_weight(name='kernel', 
+                                     shape=(self.d_dim, 2*self.d_dim),
+                                     initializer='uniform',
+                                     trainable=True)
+        self.b_d1  = self.add_weight(name='kernel', 
+                                     shape=(self.d_dim, ),
+                                     initializer='uniform',
+                                     trainable=True)
+     
+        self.W_dd  = self.add_weight(name='kernel', 
+                                     shape=(self.d_dim, self.d_dim),
+                                     initializer='uniform',
+                                     trainable=True)
+        self.b_d2  = self.add_weight(name='kernel', 
+                                     shape=(self.d_dim, ),
+                                     initializer='uniform',
+                                     trainable=True)
         
-        initial_W_ddk_value = np.random.uniform(0, 1, size=[self.d_dim, self.d_dim]) 
-        initial_b_dk_value = np.random.uniform(0, 1, size=[self.d_dim])
-        
-        initial_W_d2d_value = np.random.uniform(0, 1, size=[self.d_dim, 2*self.d_dim])
-        initial_b_d1_value = np.random.uniform(0, 1, size=[self.d_dim])
-    
-        initial_W_dd_value = np.random.uniform(0, 1, size=[self.d_dim, self.d_dim])
-        initial_b_d2_value = np.random.uniform(0, 1, size=[self.d_dim])
 
-
-
-        self.W_ddm = K.variable(initial_W_ddm_value)
-        self.b_dm  = K.variable(initial_b_dm_value)
-
-        self.W_ddk = K.variable(initial_W_ddk_value)
-        self.b_dk  = K.variable(initial_b_dk_value)
-
-        self.W_d2d = K.variable(initial_W_d2d_value)
-        self.b_d1   = K.variable(initial_b_d1_value)
-    
-        self.W_dd  = K.variable(initial_W_dd_value)
-        self.b_d2   = K.variable(initial_b_d2_value)
-
-        self.trainable_weights = [self.W_ddm, self.b_dm, self.W_ddk, self.b_dk,
-                                  self.W_d2d, self.b_d1, self.W_dd, self.b_d2]
         super(ReadUnit, self).build(input_shape)
     
   
