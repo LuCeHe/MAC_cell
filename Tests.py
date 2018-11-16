@@ -147,6 +147,50 @@ def test_ReadUnit():
     print(r_i)     
     
 
+
+def test_ReadUnit_Gradients():
+    d = 3
+    
+    
+    # data
+    
+    # FIXME: it doesn't work with a batchSize = 2
+    batchSize = 2
+    c_i = np.random.uniform(0, 1, size=(batchSize,d))
+    m_i_1 = np.random.uniform(0, 1, size=(batchSize,d))
+    k_hw = np.random.uniform(0, 1, size=(batchSize, 3, 4, d))
+    
+    input_data = [c_i, m_i_1, k_hw]
+  
+  
+    # build model  
+    c_input = Input(shape=(d,), name='c_input')
+    m_input = Input(shape=(d,), name='q_input')
+    k_input = Input(shape=(None, None, d), name='w_input')
+  
+    output = ReadUnit()([c_input, m_input, k_input])
+    model = Model(inputs =[c_input, m_input, k_input], output = output)
+
+    r_i = model.predict(input_data)
+    print(len(r_i))
+    print(r_i.shape)
+    print(r_i)     
+    print('')
+    model.summary()    
+    
+    model.compile(optimizer='sgd', loss='binary_crossentropy')
+
+    for layer in model.layers:
+        print(layer)
+    
+    print('')
+    weights = model.trainable_weights # weight tensors
+    #weights = [weight for weight in weights if model.get_layer(weight.name[:-2]).trainable] # filter down weights tensors to only ones which are trainable
+    gradients = model.optimizer.get_gradients(model.total_loss, weights) # gradient tensors
+    
+    print(weights)
+
+
 def test_WriteUnit():
     d = 3
     
@@ -492,8 +536,8 @@ if __name__ == '__main__':
     #test_pMAC_wBiLSTM_wEmbedding()
     #test_simpleMAC(maxLen=10)
     #test_Internal()
-    test_simplerInternal()
-    
+    #test_simplerInternal()
+    test_ReadUnit_Gradients()
 
 
     

@@ -44,10 +44,15 @@ from keras.layers import Dense, concatenate, Input, Conv2D, Embedding, \
                             TimeDistributed, Bidirectional, RepeatVector
 from keras.engine.topology import Layer
 from keras import initializers
+from keras.optimizers import Adam
+from keras.callbacks import ModelCheckpoint, ReduceLROnPlateau, TensorBoard,\
+    EarlyStopping, TerminateOnNaN
 
 import tensorflow as tf
 
 import numpy as np
+
+from CLEVR_generator import CLEVR_generator
 
 
 '''
@@ -323,14 +328,8 @@ def OutputUnit(m_p, q, num_softmax = 20):
 
 def MAC_layer(d, c_i_1, q, cws, m_i_1, KB):
     
-    print('c_i_1:   ', c_i_1)
-    print('')
-    print('q:       ', q)
-    
-    print('')
-    print(K.shape(c_i_1)[0])
     # FIXME: plug again some of the following asssertions
-    #assert 2*K.int_shape(c_i_1)[1] == K.int_shape(q)[1] 
+    assert 2*K.int_shape(c_i_1)[1] == K.int_shape(q)[1] 
     
     q_i = Dense(d, activation='linear')(q)
     c_i = ControlUnit()([c_i_1, q_i, cws])    
@@ -352,12 +351,16 @@ class completeMACmodel_simple(object):
                  d=2,  
                  maxLen=None, 
                  p=3, 
-                 embDim=32):
+                 embDim=32,
+                 inputVocabSize=102,
+                 outputVocabSize=20):
         
         self.__dict__.update(d=d, 
                              maxLen=maxLen,               
                              p=p, 
-                             embDim=embDim)
+                             embDim=embDim,
+                             inputVocabSize=inputVocabSize,
+                             outputVocabSize=outputVocabSize)
 
         self.build_model()
         
@@ -374,7 +377,7 @@ class completeMACmodel_simple(object):
         #    get input layers
         ########################################
         
-        input_images = Input(shape=(224, 224, 3), name='image')  
+        input_images = Input(shape=(228, 228, 3), name='image')  
         input_questions = Input(shape=(None,), name='question')
         
         input_layers = [input_images, input_questions]
@@ -407,7 +410,7 @@ class completeMACmodel_simple(object):
 
         # ---------------- language pipeline
         
-        embed = Embedding(102, self.embDim)(input_questions)
+        embed = Embedding(self.inputVocabSize, self.embDim)(input_questions)
         
         # plug biLSTM    
         forward, backward = Bidirectional(LSTM(self.d, return_sequences=True), input_shape=(None, self.embDim), merge_mode=None)(embed)    
@@ -432,10 +435,70 @@ class completeMACmodel_simple(object):
         for _ in range(self.p):
             c, m = MAC_layer(self.d, c, q, cws, m, k_hwd)
             
-        softmax_output = OutputUnit(m, q)
+        softmax_output = OutputUnit(m, q, num_softmax = self.outputVocabSize)
         self.model = Model(inputs = input_layers, output = [softmax_output])    
         
 
+    def compile(self):
+        
+        logPath = 'log'        
+        
+        loss = 'categorical_crossentropy'
+        optimizer = Adam(lr=1e-3, clipvalue=0.5)
+        self.model.compile(optimizer,
+                           loss=loss,
+                           metrics=['acc', 'categorical_crossentropy'],)
+                         #options=run_options, run_metadata=run_metadata)
+    
+        callbacks = []
+        if self.modelFilename is not None:
+            checkpointer = ModelCheckpoint(self.modelFilename,
+                                           monitor='val_loss',
+                                           save_best_only=True,
+                                           save_weights_only=True)
+            callbacks.append(checkpointer)
+    
+        callbacks.append(ReduceLROnPlateau(monitor='loss',
+                                           factor=0.2,
+                                           patience=5,
+                                           min_lr=1e-5))
+    
+        if logPath is not None:
+            callbacks.append(TensorBoard(logPath, histogram_freq=0, batch_size=self.batchSize))
+    
+        callbacks.append(TerminateOnNaN())
+        #callbacks.append(EarlyStopping(monitor='val_loss', min_delta=1e-6, patience=50, mode='auto'))
+        
+        self.callbacks = callbacks
+
+    def trainOnClevr(self, batchSize=16, modelFilename = None):
+        self.modelFilename = modelFilename
+        self.batchSize = batchSize
+        
+        self.compile()
+        generator = CLEVR_generator(batchSize=self.batchSize, maxLen=self.maxLen)
+        #model.summary()
+        
+        try:
+            self.model.fit_generator(generator,
+                                     epochs=1,
+                                     steps_per_epoch=1,
+                                     validation_data=generator,
+                                     validation_steps=1,
+                                     use_multiprocessing=False,
+                                     shuffle=False,
+                                     verbose=1,
+                                     callbacks=self.callbacks)
+        except KeyboardInterrupt:
+            logger.info("Training interrupted by the user")
+            if self.modelFilename is not None:
+                self.model.save_weights(self.modelFilename)
+           
+        if self.modelFilename is not None:
+            self.model.save_weights(self.modelFilename)
+
+        
+        
     def passRandomNumpyThroughModel(self):
         pass
     
