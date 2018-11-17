@@ -171,11 +171,11 @@ def test_ReadUnit_Gradients():
     output = ReadUnit()([c_input, m_input, k_input])
     model = Model(inputs =[c_input, m_input, k_input], output = output)
 
-    r_i = model.predict(input_data)
-    print(len(r_i))
-    print(r_i.shape)
-    print(r_i)     
-    print('')
+    #r_i = model.predict(input_data)
+    #print(len(r_i))
+    #print(r_i.shape)
+    #print(r_i)     
+    #print('')
     model.summary()    
     
     model.compile(optimizer='sgd', loss='binary_crossentropy')
@@ -186,9 +186,9 @@ def test_ReadUnit_Gradients():
     print('')
     weights = model.trainable_weights # weight tensors
     
-    for weight in weights:
-        print(weight)
-    print('')
+    #for weight in weights:
+    #    print(weight)
+    #print('')
 
     #weights = [weight for weight in weights if model.get_layer(weight.name[:-2]).trainable] # filter down weights tensors to only ones which are trainable
     gradients = model.optimizer.get_gradients(model.output, k_input) # gradient tensors

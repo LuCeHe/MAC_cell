@@ -246,6 +246,10 @@ class ReadUnit(Layer):
         Wm_b = K.expand_dims(Wm_b,axis=1)
         I_ihw = Wm_b*Wk_b        
         
+        grad = tf.gradients(xs=[c_i, m_i_1, k_hw], ys=I_ihw)
+        print('d I_ihw/inputs:   ', grad)
+        
+        
         # equation r2
         conc_Ik = K.concatenate([I_ihw, k_hw], axis=3)        
         
@@ -265,7 +269,10 @@ class ReadUnit(Layer):
         
         # equation r33         
         r_i = K.sum(rv_ihw*k_hw, axis=1)        
-        r_i = K.sum(r_i, axis=1)        
+        r_i = K.sum(r_i, axis=1)    
+        
+        grad = tf.gradients(xs=[c_i, m_i_1, k_hw], ys=r_i)
+        print('d r_i/inputs:     ', grad)    
         return r_i
   
   
