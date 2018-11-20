@@ -41,6 +41,7 @@ import zipfile
 import json
 import numpy as np
 from nltk.grammar import Nonterminal, CFG, Production
+from keras.preprocessing.sequence import pad_sequences
 
 
 class Vocabulary(object):
@@ -159,7 +160,27 @@ def sentenceSplit(sentence):
     
     return split_sentence
     
+
+def generateBatchRandomQuestions(batchSize, maxLen, vocabSize = 7):
     
+    questions = []
+    for _ in range(batchSize):
+        sentence_length = np.random.choice(9)
+        randomQ = np.random.choice(vocabSize, sentence_length)
+        questions.append(randomQ)
+    
+        
+        
+    padded_questions = pad_sequences(questions, maxlen = maxLen)
+    
+    print('Padded question')
+    print('')
+    print(padded_questions)
+    print('')
+    
+    return padded_questions
+
+
 def build_CLEVR_Vocabulary():
     # TODO: get vocabulary from all datasets
     CLEVR_zip = zipfile.ZipFile("data/CLEVR_v1.0.zip", "r")

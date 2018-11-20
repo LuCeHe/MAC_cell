@@ -53,7 +53,7 @@ import tensorflow as tf
 import numpy as np
 
 from CLEVR_generator import CLEVR_generator
-
+from nlp import generateBatchRandomQuestions
 
 '''
 - [DONE] Control Unit
@@ -542,8 +542,21 @@ class completeMACmodel_simple(object):
            
         if self.modelFilename is not None:
             self.model.save_weights(self.modelFilename)
-
+            
+            
+    def trainOnNumpyRandom(self, batchSize=16):
         
+        self.batchSize = batchSize
+        self.modelFilename = None
+        
+        self.compile()
+        
+        # Inputs      
+        question = generateBatchRandomQuestions(batchSize, self.maxLen, vocabSize=self.inputVocabSize)
+        answer   = generateBatchRandomQuestions(batchSize, self.maxLen, vocabSize=self.outputVocabSize)
+        image    = np.random.uniform(0, 1, size=(batchSize, 228, 228, 3))
+               
+        self.model.fit([image, question], answer)
         
     def passRandomNumpyThroughModel(self):
         pass
@@ -579,7 +592,7 @@ if __name__ == '__main__':
     MAC = completeMACmodel_simple(maxLen=10)
     model = MAC.model
     model.summary()
-    MAC.trainOnClevr(16, 'MAC')
+    MAC.trainOnNumpyRandom(16)
     
     
     

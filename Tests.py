@@ -41,33 +41,15 @@ import numpy as np
 from keras.models import Sequential, Model
 from keras.layers import Dense, Input, concatenate, LSTM, Lambda, Reshape
 from keras.layers import TimeDistributed, Bidirectional, Embedding, RepeatVector
-from keras.preprocessing.sequence import pad_sequences
 import keras.backend as K
 
 import tensorflow as tf
 
 from MAC_variants import ControlUnit, ReadUnit, WriteUnit, MAC_layer, OutputUnit, \
                          completeMACmodel_simple
+from nlp import generateBatchRandomQuestions
 
 
-def generateBatchRandomQuestions(batchSize, maxLen):
-    
-    questions = []
-    for _ in range(batchSize):
-        sentence_length = np.random.choice(9)
-        randomQ = np.random.choice(7, sentence_length)
-        questions.append(randomQ)
-    
-        
-        
-    padded_questions = pad_sequences(questions, maxlen = maxLen)
-    
-    print('Padded question')
-    print('')
-    print(padded_questions)
-    print('')
-    
-    return padded_questions
     
     
 def test_ControlUnit():
