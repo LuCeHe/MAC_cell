@@ -44,6 +44,7 @@ from keras.layers import TimeDistributed, Bidirectional, Embedding, RepeatVector
 from keras.preprocessing.sequence import pad_sequences
 import keras.backend as K
 
+import tensorflow as tf
 
 from MAC_variants import ControlUnit, ReadUnit, WriteUnit, MAC_layer, OutputUnit, \
                          completeMACmodel_simple
@@ -178,6 +179,9 @@ def test_ReadUnit_Gradients():
     #print('')
     model.summary()    
     
+    grad = tf.gradients(xs=[c_input, m_input, k_input], ys=model.output)
+    print('grad:     ', grad)    
+        
     model.compile(optimizer='sgd', loss='binary_crossentropy')
 
     #for layer in model.layers:
@@ -186,16 +190,19 @@ def test_ReadUnit_Gradients():
     print('')
     weights = model.trainable_weights # weight tensors
     
-    #for weight in weights:
-    #    print(weight)
-    #print('')
-
+    for weight in weights:
+        print(weight)
+    print('')
+    grad = tf.gradients(xs=weights, ys=model.output)
+    for g, w in zip(grad, weights):
+        print(w)
+        print('        ', g)  
     #weights = [weight for weight in weights if model.get_layer(weight.name[:-2]).trainable] # filter down weights tensors to only ones which are trainable
-    gradients = model.optimizer.get_gradients(model.output, k_input) # gradient tensors
+    gradients = model.optimizer.get_gradients(model.output, weights) # gradient tensors
     
     #print(weights)
     
-    model.fit(input_data, c_i)
+    model.fit(input_data, c_i, batch_size=1)
 
 def test_WriteUnit():
     d = 3
@@ -539,11 +546,8 @@ if __name__ == '__main__':
     #test_pMAC_wOutput()   
     #test_pMAC_wO_wbiLSTM()
     #test_ResNet50()
-    #test_pMAC_wBiLSTM_wEmbedding()
-    #test_simpleMAC(maxLen=10)
-    #test_Internal()
-    #test_simplerInternal()
-    test_ReadUnit_Gradients()
+    ##test_pMAC_wBiLSTM_wEmbedding(
+    #test_ReadUnit_Gradients()
 
 
     

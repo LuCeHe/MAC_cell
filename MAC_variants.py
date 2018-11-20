@@ -188,38 +188,38 @@ class ReadUnit(Layer):
 #         self.trainable_weights = [self.W_ddm, self.b_dm, self.W_ddk, self.b_dk,
 #                                   self.W_d2d, self.b_d1, self.W_dd, self.b_d2]
 
-        self.W_ddm = self.add_weight(name='kernel', 
+        self.W_ddm = self.add_weight(name='W_ddm', 
                                      shape=(self.d_dim, self.d_dim),
                                      initializer='uniform',
                                      trainable=True)
-        self.b_dm  = self.add_weight(name='kernel', 
+        self.b_dm  = self.add_weight(name='b_dm', 
                                      shape=(self.d_dim, ),
                                      initializer='uniform',
                                      trainable=True)
  
-        self.W_ddk = self.add_weight(name='kernel', 
+        self.W_ddk = self.add_weight(name='W_ddk', 
                                      shape=(self.d_dim, self.d_dim),
                                      initializer='uniform',
                                      trainable=True)
-        self.b_dk  = self.add_weight(name='kernel', 
+        self.b_dk  = self.add_weight(name='b_dk', 
                                      shape=(self.d_dim, ),
                                      initializer='uniform',
                                      trainable=True)
  
-        self.W_d2d = self.add_weight(name='kernel', 
+        self.W_d2d = self.add_weight(name='W_d2d', 
                                      shape=(self.d_dim, 2*self.d_dim),
                                      initializer='uniform',
                                      trainable=True)
-        self.b_d1  = self.add_weight(name='kernel', 
+        self.b_d1  = self.add_weight(name='b_d1', 
                                      shape=(self.d_dim, ),
                                      initializer='uniform',
                                      trainable=True)
      
-        self.W_dd  = self.add_weight(name='kernel', 
+        self.W_dd  = self.add_weight(name='W_dd', 
                                      shape=(self.d_dim, self.d_dim),
                                      initializer='uniform',
                                      trainable=True)
-        self.b_d2  = self.add_weight(name='kernel', 
+        self.b_d2  = self.add_weight(name='b_d2', 
                                      shape=(self.d_dim, ),
                                      initializer='uniform',
                                      trainable=True)
@@ -239,15 +239,15 @@ class ReadUnit(Layer):
         # equation r1        
         Wm_b = K.dot(m_i_1, K.transpose(self.W_ddm))
         Wm_b = K.bias_add(Wm_b, self.b_dm, data_format=None)  
-        Wk_b = K.dot(m_i_1, K.transpose(self.W_ddk))
-        Wk_b = K.bias_add(k_hw, self.b_dk, data_format=None)          
+        Wk_b = K.dot(k_hw, K.transpose(self.W_ddk))
+        Wk_b = K.bias_add(Wk_b, self.b_dk, data_format=None)          
         
         Wm_b = K.expand_dims(Wm_b,axis=1)
         Wm_b = K.expand_dims(Wm_b,axis=1)
         I_ihw = Wm_b*Wk_b        
         
         grad = tf.gradients(xs=[c_i, m_i_1, k_hw], ys=I_ihw)
-        print('d I_ihw/inputs:   ', grad)
+        print('grad:   ', grad)
         
         
         # equation r2
@@ -272,7 +272,7 @@ class ReadUnit(Layer):
         r_i = K.sum(r_i, axis=1)    
         
         grad = tf.gradients(xs=[c_i, m_i_1, k_hw], ys=r_i)
-        print('d r_i/inputs:     ', grad)    
+        print('grad:     ', grad)    
         return r_i
   
   
@@ -578,7 +578,9 @@ if __name__ == '__main__':
     
     MAC = completeMACmodel_simple(maxLen=10)
     model = MAC.model
-    
     model.summary()
+    MAC.trainOnClevr(16, 'MAC')
+    
+    
     
     
