@@ -100,6 +100,25 @@ def test_ControlUnit():
     c_i = model.predict(input_data)
     print('c_i:     ', c_i)
           
+
+    print('')
+    print('    Test Gradients')
+    print('')
+    weights = model.trainable_weights # weight tensors
+    
+    grad = tf.gradients(xs=weights, ys=model.output)
+    for g, w in zip(grad, weights):
+        print(w)
+        print('        ', g)  
+        
+    print('')
+    print('    Test Fit')
+    print('')
+    
+    model.compile(optimizer='sgd', loss='binary_crossentropy')
+    model.fit(input_data, c_i_1)
+
+
           
 def test_ReadUnit():
     d = 3
@@ -172,9 +191,6 @@ def test_ReadUnit_Gradients():
     print('')
     weights = model.trainable_weights # weight tensors
     
-    for weight in weights:
-        print(weight)
-    print('')
     grad = tf.gradients(xs=weights, ys=model.output)
     for g, w in zip(grad, weights):
         print(w)
@@ -184,12 +200,14 @@ def test_ReadUnit_Gradients():
     
     #print(weights)
     
-    model.fit(input_data, c_i, batch_size=1)
+    model.fit(input_data, c_i)
 
 def test_WriteUnit():
     d = 3
     
-    
+    print('')
+    print('    Test Predict')
+    print('')
     # data
     
     # FIXME: it doesn't work with a batchSize = 2
@@ -213,6 +231,25 @@ def test_WriteUnit():
     print(len(m_i))
     print(m_i.shape)
     print(m_i)
+    
+    print('')
+    print('    Test Gradients')
+    print('')
+    weights = model.trainable_weights # weight tensors
+    
+    grad = tf.gradients(xs=weights, ys=model.output)
+    for g, w in zip(grad, weights):
+        print(w)
+        print('        ', g)  
+        
+    print('')
+    print('    Test Fit')
+    print('')
+    
+    model.compile(optimizer='sgd', loss='binary_crossentropy')
+    model.fit(input_data, m_i_1)
+    
+    
 
 
 
@@ -520,7 +557,7 @@ def test_simpleMAC(maxLen=None):
     
 if __name__ == '__main__':
     
-    #test_ControlUnit()
+    test_ControlUnit()
     #test_ReadUnit()
     #test_WriteUnit()
     #test_MAC()

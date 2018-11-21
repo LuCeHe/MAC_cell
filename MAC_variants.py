@@ -47,6 +47,7 @@ from keras import initializers
 from keras.optimizers import Adam
 from keras.callbacks import ModelCheckpoint, ReduceLROnPlateau, TensorBoard,\
     EarlyStopping, TerminateOnNaN
+from keras.utils import to_categorical
 
 import tensorflow as tf
 
@@ -246,8 +247,8 @@ class ReadUnit(Layer):
         Wm_b = K.expand_dims(Wm_b,axis=1)
         I_ihw = Wm_b*Wk_b        
         
-        grad = tf.gradients(xs=[c_i, m_i_1, k_hw], ys=I_ihw)
-        print('grad:   ', grad)
+        #grad = tf.gradients(xs=[c_i, m_i_1, k_hw], ys=I_ihw)
+        #print('grad:   ', grad)
         
         
         # equation r2
@@ -271,8 +272,8 @@ class ReadUnit(Layer):
         r_i = K.sum(rv_ihw*k_hw, axis=1)        
         r_i = K.sum(r_i, axis=1)    
         
-        grad = tf.gradients(xs=[c_i, m_i_1, k_hw], ys=r_i)
-        print('grad:     ', grad)    
+        #grad = tf.gradients(xs=[c_i, m_i_1, k_hw], ys=r_i)
+        #print('grad:     ', grad)    
         return r_i
   
   
@@ -295,11 +296,6 @@ class WriteUnit(Layer):
         
         self.d_dim = input_shape[0][1]
     
-        initial_W_d2d_value = np.random.uniform(0, 1, size=[self.d_dim, 2*self.d_dim])
-        initial_b_d_value = np.random.uniform(0, 1, size=[self.d_dim])
-    
-        initial_W_1d1_value = np.random.uniform(0, 1, size=[1, self.d_dim])
-        initial_b_11_value = np.random.uniform(0, 1, size=[1])
         
         if not self.integration_steps == 1:
             print('The optional features of the WU were not implemented yet!')
@@ -310,11 +306,23 @@ class WriteUnit(Layer):
         #initial_W_1d2_value = np.random.uniform(0, 1, size=[1, self.d_dim])
         #initial_b_12_value = np.random.uniform(0, 1, size=[1])
 
-        self.W_d2d = K.variable(initial_W_d2d_value)
-        self.b_d   = K.variable(initial_b_d_value)
+        self.W_d2d = self.add_weight(name='W_dd', 
+                                     shape=(self.d_dim, 2*self.d_dim),
+                                     initializer='uniform',
+                                     trainable=True)
+        self.b_d   = self.add_weight(name='b_d', 
+                                     shape=(self.d_dim,),
+                                     initializer='uniform',
+                                     trainable=True)
     
-        self.W_1d1 = K.variable(initial_W_1d1_value)
-        self.b_11  = K.variable(initial_b_11_value)
+        #self.W_1d1 = self.add_weight(name='W_1d1', 
+        #                             shape=(1, self.d_dim),
+        #                             initializer='uniform',
+        #                             trainable=True)
+        #self.b_11  = self.add_weight(name='b_11', 
+        #                             shape=(1,),
+        #                             initializer='uniform',
+        #                             trainable=True)
 
         #self.W_dds  = K.variable(initial_W_dds_value)
         #self.W_ddp  = K.variable(initial_W_ddp_value)
@@ -323,8 +331,6 @@ class WriteUnit(Layer):
         #self.W_1d2 = K.variable(initial_W_1d2_value)
         #self.b_12  = K.variable(initial_b_12_value)
 
-        self.trainable_weights = [self.W_d2d, self.b_d, self.W_1d1, self.b_11]
-                                  #self.W_dds, self.W_ddp, self.b_dsp, self.W_1d2, self.b_12]
         
         super(WriteUnit, self).build(input_shape)
     
@@ -366,18 +372,18 @@ def OutputUnit(m_p, q, num_softmax = 20):
     
     assert 2*K.int_shape(m_p)[1] == K.int_shape(q)[1]
     x = concatenate([m_p, q])
-    x = Dense(d, activation='relu')(x)
-    softmax_ouput_layer = Dense(num_softmax, activation='softmax')(x)
+    x = Dense(d, activation='relu', name = 'dense_output_preSoftmax')(x)
+    softmax_ouput_layer = Dense(num_softmax, activation='softmax', name = 'dense_output_Softmax')(x)
     
     return softmax_ouput_layer
 
 
-def MAC_layer(d, c_i_1, q, cws, m_i_1, KB):
+def MAC_layer(d, nbMAC, c_i_1, q, cws, m_i_1, KB):
     
     # FIXME: plug again some of the following asssertions
     assert 2*K.int_shape(c_i_1)[1] == K.int_shape(q)[1] 
     
-    q_i = Dense(d, activation='linear')(q)
+    q_i = Dense(d, activation='linear', name = 'MAC_dense_%s'%(nbMAC))(q)
     c_i = ControlUnit()([c_i_1, q_i, cws])    
     r_i = ReadUnit()([c_i, m_i_1, KB])
     m_i = WriteUnit()([c_i, r_i, m_i_1])
@@ -478,8 +484,8 @@ class completeMACmodel_simple(object):
         # ---------------- multimodal pipeline
         
         # k MAC cells
-        for _ in range(self.p):
-            c, m = MAC_layer(self.d, c, q, cws, m, k_hwd)
+        for p_i in range(self.p):
+            c, m = MAC_layer(self.d, p_i, c, q, cws, m, k_hwd)
             
         softmax_output = OutputUnit(m, q, num_softmax = self.outputVocabSize)
         self.model = Model(inputs = input_layers, output = [softmax_output])    
@@ -553,9 +559,14 @@ class completeMACmodel_simple(object):
         
         # Inputs      
         question = generateBatchRandomQuestions(batchSize, self.maxLen, vocabSize=self.inputVocabSize)
-        answer   = generateBatchRandomQuestions(batchSize, self.maxLen, vocabSize=self.outputVocabSize)
+        answer   = np.random.choice(self.outputVocabSize, batchSize)
+        
+        answer   = np.random.choice(self.outputVocabSize, batchSize)
+        answer = np.expand_dims(answer, axis=1)
+        answer = to_categorical(answer, num_classes=self.outputVocabSize)
         image    = np.random.uniform(0, 1, size=(batchSize, 228, 228, 3))
                
+        print(image.shape, answer.shape, question.shape)
         self.model.fit([image, question], answer)
         
     def passRandomNumpyThroughModel(self):
@@ -569,6 +580,7 @@ class completeMACmodel_simple(object):
     
 class MAC_cell(Layer):
     pass
+
 # MAC cell with memory to the controller
 class mcMAC_cell(Layer):
     pass
@@ -590,8 +602,8 @@ class ACT_RMAC_cell(Layer):
 if __name__ == '__main__':
     
     MAC = completeMACmodel_simple(maxLen=10)
-    model = MAC.model
-    model.summary()
+    #model = MAC.model
+    #model.summary()
     MAC.trainOnNumpyRandom(16)
     
     
