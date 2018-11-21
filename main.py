@@ -59,7 +59,8 @@ import numpy as np
 import time
 from nlp import Vocabulary
 
-
+#import warnings
+#warnings.filterwarnings("ignore")
     
 from MAC_variants import completeMACmodel_simple
 
@@ -75,7 +76,7 @@ def train_MAC_on_CLEVR():
     inputVocabSize  = len(vocabularyQuestions.tokens)
     outputVocabSize = len(vocabularyAnswers.tokens)
         
-    batchSize = 16
+    batchSize = 32
     maxLen = 10
     modelFilename = 'MAC'
     
@@ -85,7 +86,7 @@ def train_MAC_on_CLEVR():
                                   embDim=32,
                                   inputVocabSize=inputVocabSize,
                                   outputVocabSize=outputVocabSize)
-    MAC.trainOnClevr(modelFilename) 
+    MAC.trainOnClevr(batchSize, modelFilename) 
 
 
 

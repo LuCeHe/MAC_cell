@@ -533,13 +533,15 @@ class completeMACmodel_simple(object):
         
         try:
             self.model.fit_generator(generator,
-                                     epochs=1,
-                                     steps_per_epoch=1,
+                                     epochs=10,
+                                     steps_per_epoch=1000,
                                      validation_data=generator,
-                                     validation_steps=1,
+                                     validation_steps=10,
                                      use_multiprocessing=False,
+                                     workers=0,
+                                     max_queue_size=1,
                                      shuffle=False,
-                                     verbose=1,
+                                     verbose=2,
                                      callbacks=self.callbacks)
         except KeyboardInterrupt:
             logger.info("Training interrupted by the user")
