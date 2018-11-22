@@ -53,7 +53,7 @@ import tensorflow as tf
 
 import numpy as np
 
-from CLEVR_generator import CLEVR_generator
+from CLEVR_generator import CLEVR_generator, CLEVR_sequence
 from nlp import generateBatchRandomQuestions
 
 '''
@@ -378,6 +378,30 @@ def OutputUnit(m_p, q, num_softmax = 20):
     return softmax_ouput_layer
 
 
+
+# FIXME: not functional!!
+class MAC_layer_layer(Layer):
+    def __init__(self, d, nbMAC, integration_steps = 1, **kwargs):
+        self.integration_steps = integration_steps
+        self.d, self.nbMAC = d, nbMAC
+        super(MAC_layer, self).__init__(**kwargs)
+
+    def call(self, inputs, mask=None):
+        c_i_1, q, cws, m_i_1, KB = inputs
+        # FIXME: plug again some of the following asssertions
+        assert 2*K.int_shape(c_i_1)[1] == K.int_shape(q)[1] 
+        
+        q_i = Dense(self.d, activation='linear', name = 'MAC_dense_%s'%(self.nbMAC))(q)
+        c_i = ControlUnit()([c_i_1, q_i, cws])    
+        r_i = ReadUnit()([c_i, m_i_1, KB])
+        m_i = WriteUnit()([c_i, r_i, m_i_1])
+    
+        return [c_i, m_i]
+    
+    def get_output_shape_for(self, input_shape):
+        return [self.d_dim, self.d_dim]
+    
+
 def MAC_layer(d, nbMAC, c_i_1, q, cws, m_i_1, KB):
     
     # FIXME: plug again some of the following asssertions
@@ -516,30 +540,31 @@ class completeMACmodel_simple(object):
                                            min_lr=1e-5))
     
         if logPath is not None:
-            callbacks.append(TensorBoard(logPath, histogram_freq=0, batch_size=self.batchSize))
+            callbacks.append(TensorBoard(logPath, histogram_freq=0, batch_size=self.batch_size))
     
         callbacks.append(TerminateOnNaN())
         #callbacks.append(EarlyStopping(monitor='val_loss', min_delta=1e-6, patience=50, mode='auto'))
         
         self.callbacks = callbacks
 
-    def trainOnClevr(self, batchSize=16, modelFilename = None):
+    def trainOnClevr(self, batch_size=16, modelFilename = None):
         self.modelFilename = modelFilename
-        self.batchSize = batchSize
+        self.batch_size = batch_size
         
         self.compile()
-        generator = CLEVR_generator(batchSize=self.batchSize, maxLen=self.maxLen)
+        generatorTrain = CLEVR_sequence(dataset_split = 'train', batch_size=self.batch_size, maxLen=self.maxLen)
+        generatorVal   = CLEVR_sequence(dataset_split = 'val', batch_size=self.batch_size, maxLen=self.maxLen)
         #model.summary()
         
         try:
-            self.model.fit_generator(generator,
+            self.model.fit_generator(generatorTrain,
                                      epochs=10,
-                                     steps_per_epoch=1000,
-                                     validation_data=generator,
+                                     steps_per_epoch=None,
+                                     validation_data=generatorVal,
                                      validation_steps=10,
                                      use_multiprocessing=False,
                                      workers=0,
-                                     max_queue_size=1,
+                                     max_queue_size=10,
                                      shuffle=False,
                                      verbose=2,
                                      callbacks=self.callbacks)
@@ -552,30 +577,24 @@ class completeMACmodel_simple(object):
             self.model.save_weights(self.modelFilename)
             
             
-    def trainOnNumpyRandom(self, batchSize=16):
+    def trainOnNumpyRandom(self, batch_size=16):
         
-        self.batchSize = batchSize
+        self.batch_size = batch_size
         self.modelFilename = None
         
         self.compile()
         
         # Inputs      
-        question = generateBatchRandomQuestions(batchSize, self.maxLen, vocabSize=self.inputVocabSize)
-        answer   = np.random.choice(self.outputVocabSize, batchSize)
+        question = generateBatchRandomQuestions(batch_size, self.maxLen, vocabSize=self.inputVocabSize)
+        answer   = np.random.choice(self.outputVocabSize, batch_size)
         
-        answer   = np.random.choice(self.outputVocabSize, batchSize)
+        answer   = np.random.choice(self.outputVocabSize, batch_size)
         answer = np.expand_dims(answer, axis=1)
         answer = to_categorical(answer, num_classes=self.outputVocabSize)
-        image    = np.random.uniform(0, 1, size=(batchSize, 228, 228, 3))
+        image    = np.random.uniform(0, 1, size=(batch_size, 228, 228, 3))
                
         print(image.shape, answer.shape, question.shape)
         self.model.fit([image, question], answer)
-        
-    def passRandomNumpyThroughModel(self):
-        pass
-    
-    def train(self):
-        pass
     
     
     

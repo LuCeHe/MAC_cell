@@ -62,7 +62,7 @@ from nlp import Vocabulary
 #import warnings
 #warnings.filterwarnings("ignore")
     
-from MAC_variants import completeMACmodel_simple
+from models.MAC_variants import completeMACmodel_simple
 
 logger = logging.getLogger(__name__)
 
@@ -76,18 +76,19 @@ def train_MAC_on_CLEVR():
     inputVocabSize  = len(vocabularyQuestions.tokens)
     outputVocabSize = len(vocabularyAnswers.tokens)
         
-    batchSize = 32
+    batch_size = 64
     maxLen = 10
     modelFilename = 'MAC'
     
     MAC = completeMACmodel_simple(d=512,  
                                   maxLen=maxLen, 
                                   p=12, 
-                                  embDim=32,
+                                  embDim=300,
                                   inputVocabSize=inputVocabSize,
                                   outputVocabSize=outputVocabSize)
-    MAC.trainOnClevr(batchSize, modelFilename) 
-
+    #MAC.model.summary()
+    #MAC.trainOnClevr(batch_size, modelFilename) 
+    MAC.trainOnNumpyRandom(batch_size)
 
 
     

@@ -39,12 +39,88 @@ from skimage import transform,io
 import numpy as np
 
 from keras.preprocessing.sequence import pad_sequences
-from keras.utils import to_categorical
+from keras.utils import to_categorical, Sequence
 
 
+class CLEVR_sequence(Sequence):
+    def __init__(self, dataset_split = 'val', batch_size = 3, maxLen = None):
+        self.dataset_split, self.batch_size, self.maxLen = dataset_split, batch_size, maxLen
+
+        self.CLEVR_zip = zipfile.ZipFile("data/CLEVR_v1.0.zip", "r")
+        
+        if not dataset_split in ['train', 'test', 'val']:
+            Exception("dataset_split parameter should be either 'train', 'test' or 'val'")
+            
+        json_filename = 'CLEVR_v1.0/questions/CLEVR_%s_questions.json'%(dataset_split)
+        
+        #logger.info('\n\nLoading .json ')
+        #print('\n\nLoading .json ')
+    
+        
+        with self.CLEVR_zip.open(json_filename) as f:  
+            data = f.read()  
+            self.d = json.loads(data.decode("utf-8"))
+           
+        
+        self.vocabularyQuestions = Vocabulary.fromNpy('data/vocabularyQuestions.npy')
+        self.vocabularyAnswers = Vocabulary.fromNpy('data/vocabularyAnswers.npy')
+        self.outputVocabSize = len(self.vocabularyAnswers.tokens)
+        
+        
+    def __len__(self):
+        if self.dataset_split == 'train':
+            length = 699989
+        elif self.dataset_split == 'test':
+            length = 149988
+        elif self.dataset_split == 'val':
+            length = 149991
+        return int(np.ceil(length / float(self.batch_size)))
+
+    def __getitem__(self, idx):
+        #print('Generating Samples')    
+        
+        batches = {}
+        for key in ['images', 'questions', 'answers']:
+            batches[key] = []
+            
+        
+        for example in self.d['questions']:
+            
+            image_filename = example['image_filename']
+            image_filename = 'CLEVR_v1.0/images/' + self.dataset_split + '/' + image_filename
+            imgfile = self.CLEVR_zip.read(image_filename)
+            image = imageio.imread(imgfile)
+            # read in grey-scale
+            #grey = io.imread(imgfile)
+            # resize to 28x28
+            image = transform.resize(image, (228,228), mode='symmetric', preserve_range=True)
+    
+            
+            batches['images'].append(image[:,:,:3])
+            
+            question       = example['question']
+            question = self.vocabularyQuestions.sentenceToIndices(question)
+            batches['questions'].append(question)
+            
+            answer         = example['answer']
+            answer = self.vocabularyAnswers.sentenceToIndices(answer)
+            batches['answers'].append(answer)
+            
+            if len(batches['questions']) >= self.batch_size:
+                images = np.array(batches['images'])
+                
+                padded_questions = np.array( pad_sequences(batches['questions'], maxlen = self.maxLen) )
+                categorical_answer = to_categorical(batches['answers'], num_classes=self.outputVocabSize)
+    
+                #padded_answers = np.array( pad_sequences(batches['answers'], maxlen = maxLen) )
+                
+                for key in ['images', 'questions', 'answers']:
+                    batches[key] = []
+    
+                return [images, padded_questions], categorical_answer
 
 
-def CLEVR_generator(dataset_split = 'val', batchSize = 3, maxLen = None):
+def CLEVR_generator(dataset_split = 'val', batch_size = 3, maxLen = None):
     CLEVR_zip = zipfile.ZipFile("data/CLEVR_v1.0.zip", "r")
     
     if not dataset_split in ['train', 'test', 'val']:
@@ -94,7 +170,7 @@ def CLEVR_generator(dataset_split = 'val', batchSize = 3, maxLen = None):
         answer = vocabularyAnswers.sentenceToIndices(answer)
         batches['answers'].append(answer)
         
-        if len(batches['questions']) >= batchSize:
+        if len(batches['questions']) >= batch_size:
             images = np.array(batches['images'])
             
             padded_questions = np.array( pad_sequences(batches['questions'], maxlen = maxLen) )
@@ -107,7 +183,23 @@ def CLEVR_generator(dataset_split = 'val', batchSize = 3, maxLen = None):
 
             yield [images, padded_questions], categorical_answer
     
+def test_content_jsons():
+    CLEVR_zip = zipfile.ZipFile("data/CLEVR_v1.0.zip", "r")
     
+    for dataset_split in ['train', 'test', 'val']:
+        
+        json_filename = 'CLEVR_v1.0/questions/CLEVR_%s_questions.json'%(dataset_split)
+                
+        with CLEVR_zip.open(json_filename) as f:  
+            data = f.read()  
+            d = json.loads(data.decode("utf-8"))
+        
+        print('       ', dataset_split)
+        print(d['info'])
+        print(d['questions'][0].keys())
+        print(len(d['questions']))
+        print('')
+       
 
 def test():    
     CLEVR_zip = zipfile.ZipFile("data/CLEVR_v1.0.zip", "r")
@@ -142,10 +234,10 @@ def test():
 
 def test_generator():
     
-    batchSize = 11
+    batch_size = 11
     
     begin = time.time()
-    generator = CLEVR_generator(batchSize = batchSize)
+    generator = CLEVR_generator(batch_size = batch_size)
     end = time.time()
     LoadingTime = end - begin
     print('it took %ds to load'%(LoadingTime))
@@ -174,4 +266,5 @@ def test_generator():
 
 
 if __name__ == '__main__':
-    test_generator()
+    #test_generator()
+    test_content_jsons()
