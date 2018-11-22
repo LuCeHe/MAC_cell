@@ -299,12 +299,6 @@ class WriteUnit(Layer):
         
         if not self.integration_steps == 1:
             print('The optional features of the WU were not implemented yet!')
-        #initial_W_dds_value = np.random.uniform(0, 1, size=[self.d_dim, self.d_dim])
-        #initial_W_ddp_value = np.random.uniform(0, 1, size=[self.d_dim, self.d_dim])
-        #initial_b_dsp_value = np.random.uniform(0, 1, size=[self.d_dim])
-
-        #initial_W_1d2_value = np.random.uniform(0, 1, size=[1, self.d_dim])
-        #initial_b_12_value = np.random.uniform(0, 1, size=[1])
 
         self.W_d2d = self.add_weight(name='W_dd', 
                                      shape=(self.d_dim, 2*self.d_dim),
@@ -314,22 +308,6 @@ class WriteUnit(Layer):
                                      shape=(self.d_dim,),
                                      initializer='uniform',
                                      trainable=True)
-    
-        #self.W_1d1 = self.add_weight(name='W_1d1', 
-        #                             shape=(1, self.d_dim),
-        #                             initializer='uniform',
-        #                             trainable=True)
-        #self.b_11  = self.add_weight(name='b_11', 
-        #                             shape=(1,),
-        #                             initializer='uniform',
-        #                             trainable=True)
-
-        #self.W_dds  = K.variable(initial_W_dds_value)
-        #self.W_ddp  = K.variable(initial_W_ddp_value)
-        #self.b_dsp   = K.variable(initial_b_dsp_value)
-
-        #self.W_1d2 = K.variable(initial_W_1d2_value)
-        #self.b_12  = K.variable(initial_b_12_value)
 
         
         super(WriteUnit, self).build(input_shape)
@@ -345,21 +323,7 @@ class WriteUnit(Layer):
         m_info = K.concatenate([r_i, m_i_1], axis=1)
         m_info = K.dot(m_info, K.transpose(self.W_d2d))
         m_info = K.bias_add(m_info, self.b_d, data_format=None)  
-        
-        #print('m_info:      ', K.int_shape(m_info))
-    
-        # equation c2.1  
-        #cqcw = cw_s * cq_i
-
-        #ca_is = K.dot(cqcw, K.transpose(self.W_1d))
-        #ca_is = K.bias_add(ca_is, self.b_1, data_format=None)
             
-        # equation c2.2
-        #cv_is = K.softmax(ca_is)
-    
-        # equation c2.3
-        #c_i = K.sum(cv_is*cw_s, axis=1)
-    
         return m_info
   
   
@@ -367,7 +331,65 @@ class WriteUnit(Layer):
         return self.d_dim
 
 
-def OutputUnit(m_p, q, num_softmax = 20):
+class complexWriteUnit(Layer):
+  
+  
+    def __init__(self, integration_steps = 1, **kwargs):
+        self.integration_steps = integration_steps
+        super(WriteUnit, self).__init__(**kwargs)
+
+    def build(self, input_shape):
+        #print(input_shape)
+        assert input_shape[0][1] == input_shape[1][1]
+        assert input_shape[0][1] == input_shape[2][1]
+        
+        self.d_dim = input_shape[0][1]
+    
+        
+        if not self.integration_steps == 1:
+            print('The optional features of the WU were not implemented yet!')
+            
+        self.W_d2d = self.add_weight(name='W_dd', 
+                                     shape=(self.d_dim, 2*self.d_dim),
+                                     initializer='uniform',
+                                     trainable=True)
+        self.b_d   = self.add_weight(name='b_d', 
+                                     shape=(self.d_dim,),
+                                     initializer='uniform',
+                                     trainable=True)
+    
+
+        super(WriteUnit, self).build(input_shape)
+    
+  
+  
+    def call(self, inputs, mask=None):
+        r_i = inputs[0]
+        c_and_m = inputs[0:]
+        nbCM = len(c_and_m)
+        
+        assert nbCM % 2 == 0
+        
+        cs = c_and_m[:nbCM/2]
+        ms = c_and_m[nbCM/2:]        
+        
+        # equation c1  
+        m_info = K.concatenate([r_i, ms[-1]], axis=1)
+        m_info = K.dot(m_info, K.transpose(self.W_d2d))
+        m_info = K.bias_add(m_info, self.b_d, data_format=None)  
+        
+        #print('m_info:      ', K.int_shape(m_info))
+        sa_01 = cs[0]*cs[1]
+        sa_01 = K.dot(sa_01, K.transpose(self.W_1d))
+        sa_01 = K.bias_add(sa_01, self.b_1, data_format=None)  
+        sa_01 = K.softmax(sa_01)
+        
+        return m_info  
+  
+    def get_output_shape_for(self, input_shape):
+        return self.d_dim
+
+def OutputUnit_old(m_p, q, num_softmax = 20):
     d = K.int_shape(m_p)[1]
     
     assert 2*K.int_shape(m_p)[1] == K.int_shape(q)[1]
@@ -377,16 +399,29 @@ def OutputUnit(m_p, q, num_softmax = 20):
     
     return softmax_ouput_layer
 
-
+class OutputUnit(object):
+    def __init__(self, num_softmax = 20):
+        self.num_softmax = num_softmax
+        
+    def __call__(self, inputs):
+        m_p, q = inputs
+        d = K.int_shape(m_p)[1]
+        
+        assert 2*K.int_shape(m_p)[1] == K.int_shape(q)[1]
+        x = concatenate([m_p, q])
+        x = Dense(d, activation='relu', name = 'dense_output_preSoftmax')(x)
+        softmax_ouput_layer = Dense(self.num_softmax, activation='softmax', name = 'dense_output_Softmax')(x)
+        
+        return softmax_ouput_layer
 
 # FIXME: not functional!!
-class MAC_layer_layer(Layer):
+class MAC_layer(object):
     def __init__(self, d, nbMAC, integration_steps = 1, **kwargs):
         self.integration_steps = integration_steps
         self.d, self.nbMAC = d, nbMAC
-        super(MAC_layer, self).__init__(**kwargs)
+        #super(MAC_layer, self).__init__(**kwargs)
 
-    def call(self, inputs, mask=None):
+    def __call__(self, inputs, mask=None):
         c_i_1, q, cws, m_i_1, KB = inputs
         # FIXME: plug again some of the following asssertions
         assert 2*K.int_shape(c_i_1)[1] == K.int_shape(q)[1] 
@@ -398,11 +433,8 @@ class MAC_layer_layer(Layer):
     
         return [c_i, m_i]
     
-    def get_output_shape_for(self, input_shape):
-        return [self.d_dim, self.d_dim]
-    
 
-def MAC_layer(d, nbMAC, c_i_1, q, cws, m_i_1, KB):
+def MAC_layer_old(d, nbMAC, c_i_1, q, cws, m_i_1, KB):
     
     # FIXME: plug again some of the following asssertions
     assert 2*K.int_shape(c_i_1)[1] == K.int_shape(q)[1] 
@@ -509,9 +541,9 @@ class completeMACmodel_simple(object):
         
         # k MAC cells
         for p_i in range(self.p):
-            c, m = MAC_layer(self.d, p_i, c, q, cws, m, k_hwd)
+            c, m = MAC_layer(self.d, p_i)([c, q, cws, m, k_hwd])
             
-        softmax_output = OutputUnit(m, q, num_softmax = self.outputVocabSize)
+        softmax_output = OutputUnit(self.outputVocabSize)([m, q])
         self.model = Model(inputs = input_layers, output = [softmax_output])    
         
 

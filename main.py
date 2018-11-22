@@ -54,6 +54,7 @@ Created on Tue Nov  6 23:17:58 2018
  
 """
 
+import os
 import logging
 import numpy as np
 import time
@@ -67,6 +68,9 @@ from models.MAC_variants import completeMACmodel_simple
 logger = logging.getLogger(__name__)
 
 
+os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
+# The GPU id to use, usually either "0" or "1"
+os.environ["CUDA_VISIBLE_DEVICES"] = "0" 
 
 
 def train_MAC_on_CLEVR():
