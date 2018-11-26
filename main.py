@@ -91,8 +91,8 @@ def train_MAC_on_CLEVR():
                                   inputVocabSize=inputVocabSize,
                                   outputVocabSize=outputVocabSize)
     #MAC.model.summary()
-    #MAC.trainOnClevr(batch_size, modelFilename) 
-    MAC.trainOnNumpyRandom(batch_size)
+    MAC.trainOnClevr(batch_size, modelFilename) 
+    #MAC.trainOnNumpyRandom(batch_size)
 
 
     
