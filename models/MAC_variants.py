@@ -56,25 +56,6 @@ import numpy as np
 from CLEVR_generator import CLEVR_generator, CLEVR_sequence
 from nlp import generateBatchRandomQuestions
 
-'''
-- [DONE] Control Unit
-- [DONE] Control Unit test
-- [DONE] Read Unit
-- [DONE] Read Unit test
-- [DONE] Write Unit
-- [DONE] Write Unit test
-- [DONE] Mac unit
-- [DONE] check that they work on batches
-- [DONE] check if the repeated matrices in each equation
-share parameters or not
-- CLEVR
-- implement self-attention:
-    - as they do
-    - as Graph Attention Net
-- CLEAR
-- recurrent MAC
-- goedel machine
-'''
 
 # MAC cell
 # https://arxiv.org/pdf/1803.03067.pdf
@@ -592,27 +573,6 @@ class completeMACmodel_simple(object):
         self.model.fit([image, question], answer)
     
     
-    
-    
-class MAC_cell(Layer):
-    pass
-
-# MAC cell with memory to the controller
-class mcMAC_cell(Layer):
-    pass
-  
-  
-  
-# recurrent MAC
-class RecurrentMAC_cell(Layer):
-    pass
-
-
-# adaptive computation time
-# https://arxiv.org/abs/1603.08983
-
-class ACT_RMAC_cell(Layer):
-    pass
 
 
 if __name__ == '__main__':

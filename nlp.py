@@ -30,11 +30,6 @@
 # POSSIBILITY OF SUCH DAMAGE.
 
 
-"""
-Created on Wed Nov  7 16:50:28 2018
-
-@author: celottil
-"""
 
 
 import zipfile

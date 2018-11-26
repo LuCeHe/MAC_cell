@@ -30,10 +30,6 @@
 # POSSIBILITY OF SUCH DAMAGE.
 
 """
-Created on Tue Nov  6 23:17:58 2018
-
-@author: celottil
-
 
  - [DONE] read png
  - [DONE] read json
@@ -50,7 +46,6 @@ Created on Tue Nov  6 23:17:58 2018
  - [DONE] plug RESNET50 with MAC
  - plug RESNET101 with MAC (converter)
  - allow for variable length sentences (maxLen = None)
- 
  
 """
 
