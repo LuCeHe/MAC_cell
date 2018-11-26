@@ -386,7 +386,7 @@ def test_pMAC_wOutput(p=3):
 
 
 
-    softmax_output = OutputUnit(m, q_input)
+    softmax_output = OutputUnit(20)([m, q_input])
     model = Model(inputs = input_layers, output = [c, softmax_output])
     
     #model.summary()
@@ -434,7 +434,7 @@ def test_pMAC_wO_wbiLSTM(p=3):
     
     for _ in range(p):
         c, m = MAC_layer(c, q, cws, m, k_input)
-    softmax_output = OutputUnit(m, q)
+    softmax_output = OutputUnit(20)([m, q])
     model = Model(inputs = input_layers, output = [c, softmax_output])    
     
     model.summary()
@@ -495,7 +495,7 @@ def test_pMAC_wBiLSTM_wEmbedding(p=3):
     
     for _ in range(p):
         c, m = MAC_layer(c, q, cws, m, k_input)
-    softmax_output = OutputUnit(m, q)
+    softmax_output = OutputUnit(20)([m, q])
     model = Model(inputs = input_layers, output = [c, softmax_output])    
     
     model.summary()

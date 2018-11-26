@@ -158,36 +158,6 @@ class ReadUnit(Layer):
         
         self.d_dim = input_shape[0][1]
         
-        # initial values of the learning parameters
-        #initial_W_ddm_value = np.random.uniform(0, 1, size=[self.d_dim, self.d_dim]) 
-        #initial_b_dm_value = np.random.uniform(0, 1, size=[self.d_dim])
-#         
-#         initial_W_ddk_value = np.random.uniform(0, 1, size=[self.d_dim, self.d_dim]) 
-#         initial_b_dk_value = np.random.uniform(0, 1, size=[self.d_dim])
-#         
-#         initial_W_d2d_value = np.random.uniform(0, 1, size=[self.d_dim, 2*self.d_dim])
-#         initial_b_d1_value = np.random.uniform(0, 1, size=[self.d_dim])
-#     
-#         initial_W_dd_value = np.random.uniform(0, 1, size=[self.d_dim, self.d_dim])
-#         initial_b_d2_value = np.random.uniform(0, 1, size=[self.d_dim])
-# 
-# 
-# 
-#         self.W_ddm = K.variable(initial_W_ddm_value)
-#         self.b_dm  = K.variable(initial_b_dm_value)
-# 
-#         self.W_ddk = K.variable(initial_W_ddk_value)
-#         self.b_dk  = K.variable(initial_b_dk_value)
-# 
-#         self.W_d2d = K.variable(initial_W_d2d_value)
-#         self.b_d1   = K.variable(initial_b_d1_value)
-#     
-#         self.W_dd  = K.variable(initial_W_dd_value)
-#         self.b_d2   = K.variable(initial_b_d2_value)
-#         
-
-#         self.trainable_weights = [self.W_ddm, self.b_dm, self.W_ddk, self.b_dk,
-#                                   self.W_d2d, self.b_d1, self.W_dd, self.b_d2]
 
         self.W_ddm = self.add_weight(name='W_ddm', 
                                      shape=(self.d_dim, self.d_dim),
@@ -331,6 +301,7 @@ class WriteUnit(Layer):
         return self.d_dim
 
 
+# TODO
 class complexWriteUnit(Layer):
   
   
@@ -389,15 +360,7 @@ class complexWriteUnit(Layer):
     def get_output_shape_for(self, input_shape):
         return self.d_dim
 
-def OutputUnit_old(m_p, q, num_softmax = 20):
-    d = K.int_shape(m_p)[1]
-    
-    assert 2*K.int_shape(m_p)[1] == K.int_shape(q)[1]
-    x = concatenate([m_p, q])
-    x = Dense(d, activation='relu', name = 'dense_output_preSoftmax')(x)
-    softmax_ouput_layer = Dense(num_softmax, activation='softmax', name = 'dense_output_Softmax')(x)
-    
-    return softmax_ouput_layer
+
 
 class OutputUnit(object):
     def __init__(self, num_softmax = 20):
