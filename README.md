@@ -25,6 +25,6 @@ List of DONEs:
 - training works, but the performance is still low
 
 List of main TODOs:
-- ResNet50 to ResNet101
-- implement the full WriteUnit
+- the low speed and low performance might be due to a faulty implementation of the generator
 - otherwise figure out what's the source of the low performance
+- ResNet50 to ResNet101
